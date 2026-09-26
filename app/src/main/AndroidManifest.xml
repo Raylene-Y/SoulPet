@@ -25,8 +25,8 @@
         <activity
             android:name=".ChatActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustPan|stateHidden"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:windowSoftInputMode="adjustResize|stateHidden"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
 
         <service
             android:name=".PetService"
