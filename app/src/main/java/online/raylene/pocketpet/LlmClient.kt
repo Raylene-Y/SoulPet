@@ -1,6 +1,8 @@
 package online.raylene.pocketpet
 
 import android.content.Context
+import online.raylene.pocketpet.tools.BatteryTool
+import online.raylene.pocketpet.tools.DateTimeTool
 import online.raylene.pocketpet.tools.PetTools
 import org.json.JSONArray
 import org.json.JSONObject
@@ -10,10 +12,10 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** OpenAI 兼容接口 + function calling 循环 */
+/** OpenAI 兼容接口 + 流式输出 + function calling 循环 */
 object LlmClient {
 
-    private val history = JSONArray()          // 原始 message JSON（含 tool_calls / tool 消息）
+    private val history = JSONArray()
     private const val MAX_HISTORY = 30
     private const val MAX_TOOL_ROUNDS = 4
 
@@ -21,48 +23,39 @@ object LlmClient {
 
     fun chat(ctx: Context, userText: String,
              onTool: (String) -> Unit = {},
+             onPartial: (String) -> Unit = {},
              onResult: (String) -> Unit) {
         Thread {
-            val reply = try { agentLoop(ctx.applicationContext, userText, onTool) }
+            val reply = try { agentLoop(ctx.applicationContext, userText, onTool, onPartial) }
             catch (e: Exception) { "（网络出错了：${e.message}）" }
             onResult(reply)
         }.start()
     }
 
-    /** 实时感知注入：常见问题零工具调用，一趟出答案 */
-    private fun senseContext(ctx: Context): String {
-        val sb = StringBuilder()
-        sb.append("- ").append(online.raylene.pocketpet.tools.DateTimeTool.run(ctx, JSONObject()))
-        sb.append("\n- 手机").append(online.raylene.pocketpet.tools.BatteryTool.run(ctx, JSONObject()))
-        return sb.toString()
-    }
-
     @Synchronized
-    private fun agentLoop(ctx: Context, userText: String, onTool: (String) -> Unit): String {
+    private fun agentLoop(ctx: Context, userText: String,
+                          onTool: (String) -> Unit,
+                          onPartial: (String) -> Unit): String {
         history.put(JSONObject().put("role", "user").put("content", userText))
         trimHistory()
 
         repeat(MAX_TOOL_ROUNDS) {
-            val resp = request(ctx)
+            val msg = streamRequest(ctx, onPartial)
 
-            val msg = resp.getJSONArray("choices").getJSONObject(0).getJSONObject("message")
             val toolCalls = msg.optJSONArray("tool_calls")
-
             if (toolCalls == null || toolCalls.length() == 0) {
                 val content = msg.optString("content", "（它没说话）")
                 history.put(JSONObject().put("role", "assistant").put("content", content))
                 return content
             }
 
-            // 记录带 tool_calls 的 assistant 消息，然后逐个执行
-            history.put(msg)
+            history.put(msg)  // 带 tool_calls 的 assistant 消息
             for (i in 0 until toolCalls.length()) {
                 val tc = toolCalls.getJSONObject(i)
                 val fn = tc.getJSONObject("function")
-                val name = fn.getString("name")
-                val args = fn.optString("arguments", "{}")
-                onTool(name)
-                val result = PetTools.execute(ctx, name, args)
+                onTool(fn.getString("name"))
+                val result = PetTools.execute(ctx, fn.getString("name"),
+                    fn.optString("arguments", "{}"))
                 history.put(JSONObject()
                     .put("role", "tool")
                     .put("tool_call_id", tc.getString("id"))
@@ -72,7 +65,8 @@ object LlmClient {
         return "（工具调用太多轮了，先这样吧）"
     }
 
-    private fun request(ctx: Context): JSONObject {
+    /** 流式请求。返回重组后的完整 message JSON；文本增量实时回调 */
+    private fun streamRequest(ctx: Context, onPartial: (String) -> Unit): JSONObject {
         val messages = JSONArray()
         messages.put(JSONObject().put("role", "system").put("content",
             persona.prompt +
@@ -87,7 +81,7 @@ object LlmClient {
             .put("model", BuildConfig.DEFAULT_MODEL)
             .put("messages", messages)
             .put("tools", tools)
-            .put("stream", false)
+            .put("stream", true)
 
         val url = URL(BuildConfig.DEFAULT_BASE_URL + "chat/completions")
         val conn = (url.openConnection() as HttpURLConnection).apply {
@@ -96,20 +90,78 @@ object LlmClient {
             readTimeout = 60000
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("Authorization", "Bearer ${BuildConfig.DEFAULT_API_KEY}")
+            setRequestProperty("Accept", "text/event-stream")
             doOutput = true
         }
         OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
 
         val code = conn.responseCode
-        val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-        val text = BufferedReader(InputStreamReader(stream)).readText()
-        if (code !in 200..299) throw RuntimeException("API $code：${text.take(200)}")
-        return JSONObject(text)
+        if (code !in 200..299) {
+            val err = BufferedReader(InputStreamReader(conn.errorStream)).readText()
+            throw RuntimeException("API $code：${err.take(200)}")
+        }
+
+        // SSE 累积：文本增量 + tool_calls 增量（按 index 分槽拼接）
+        val contentSb = StringBuilder()
+        val toolSlots = mutableMapOf<Int, JSONObject>()
+        var finishReason = ""
+
+        BufferedReader(InputStreamReader(conn.inputStream)).use { reader ->
+            while (true) {
+                val line = reader.readLine() ?: break
+                if (!line.startsWith("data:")) continue
+                val data = line.substring(5).trim()
+                if (data == "[DONE]") break
+                val chunk = JSONObject(data)
+                val choice = chunk.getJSONArray("choices").getJSONObject(0)
+                finishReason = choice.optString("finish_reason", finishReason)
+                val delta = choice.optJSONObject("delta") ?: continue
+
+                delta.optString("content", null)?.let { piece ->
+                    if (piece.isNotEmpty() && piece != "null") {
+                        contentSb.append(piece)
+                        onPartial(contentSb.toString())
+                    }
+                }
+                delta.optJSONArray("tool_calls")?.let { tcs ->
+                    for (i in 0 until tcs.length()) {
+                        val part = tcs.getJSONObject(i)
+                        val idx = part.optInt("index", 0)
+                        val slot = toolSlots.getOrPut(idx) {
+                            JSONObject().put("id", "").put("type", "function")
+                                .put("function", JSONObject().put("name", "").put("arguments", ""))
+                        }
+                        if (part.has("id")) slot.put("id", part.getString("id"))
+                        part.optJSONObject("function")?.let { f ->
+                            val slotFn = slot.getJSONObject("function")
+                            if (f.has("name")) slotFn.put("name",
+                                slotFn.getString("name") + f.getString("name"))
+                            if (f.has("arguments")) slotFn.put("arguments",
+                                slotFn.getString("arguments") + f.getString("arguments"))
+                        }
+                    }
+                }
+            }
+        }
+
+        val msg = JSONObject().put("role", "assistant")
+        if (contentSb.isNotEmpty()) msg.put("content", contentSb.toString())
+        if (toolSlots.isNotEmpty()) {
+            val arr = JSONArray()
+            for (k in toolSlots.keys.sorted()) arr.put(toolSlots[k])
+            msg.put("tool_calls", arr)
+        }
+        return msg
+    }
+
+    /** 实时感知注入：常见问题零工具调用，一趟出答案 */
+    private fun senseContext(ctx: Context): String {
+        return "- " + DateTimeTool.run(ctx, JSONObject()) +
+               "\n- 手机" + BatteryTool.run(ctx, JSONObject())
     }
 
     private fun trimHistory() {
         while (history.length() > MAX_HISTORY) history.remove(0)
-        // 裁剪后开头不能是 tool 消息（孤儿 tool_call 会让 API 报错）
         while (history.length() > 0 &&
                history.getJSONObject(0).optString("role") == "tool") {
             history.remove(0)

@@ -91,6 +91,7 @@ class ChatActivity : Activity() {
         val thinking = addMsg("宠物", "…")
         LlmClient.chat(applicationContext, text,
             onTool = { name -> runOnUiThread { addMsg("⚙", "宠物使用了工具：$name") } },
+            onPartial = { partial -> runOnUiThread { thinking.text = partial } },
             onResult = { reply ->
                 runOnUiThread {
                     thinking.text = reply
