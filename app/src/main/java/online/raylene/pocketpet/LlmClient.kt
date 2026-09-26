@@ -23,10 +23,18 @@ object LlmClient {
              onTool: (String) -> Unit = {},
              onResult: (String) -> Unit) {
         Thread {
-            val reply = try { agentLoop(ctx, userText, onTool) }
+            val reply = try { agentLoop(ctx.applicationContext, userText, onTool) }
             catch (e: Exception) { "（网络出错了：${e.message}）" }
             onResult(reply)
         }.start()
+    }
+
+    /** 实时感知注入：常见问题零工具调用，一趟出答案 */
+    private fun senseContext(ctx: Context): String {
+        val sb = StringBuilder()
+        sb.append("- ").append(online.raylene.pocketpet.tools.DateTimeTool.run(ctx, JSONObject()))
+        sb.append("\n- 手机").append(online.raylene.pocketpet.tools.BatteryTool.run(ctx, JSONObject()))
+        return sb.toString()
     }
 
     @Synchronized
@@ -67,7 +75,9 @@ object LlmClient {
     private fun request(): JSONObject {
         val messages = JSONArray()
         messages.put(JSONObject().put("role", "system").put("content",
-            persona.prompt + "\n\n你可以使用提供的工具来帮主人做事（比如查电量、看时间、读剪贴板）。需要时直接调用，用完工具用你的人格口吻汇报结果。"))
+            persona.prompt +
+            "\n\n你可以使用提供的工具来帮主人做事。需要时直接调用，用完工具用你的人格口吻汇报结果。" +
+            "\n\n【你此刻的感知】\n" + senseContext(ctx)))
         for (i in 0 until history.length()) messages.put(history.get(i))
 
         val tools = JSONArray()
