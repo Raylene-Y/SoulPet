@@ -11,6 +11,7 @@ object PetTools {
         BatteryTool,
         DateTimeTool,
         ClipboardTool,
+        TermuxTool,
         RememberTool(store),
     )
 
