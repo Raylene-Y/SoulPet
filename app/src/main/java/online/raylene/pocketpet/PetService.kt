@@ -107,8 +107,10 @@ class PetService : Service() {
     }
 
     private fun onPetTapped() {
-        // MVP：点一下 = squish 撒娇。之后接对话入口
+        // 点宠物 → 打开对话
         pet.setImageBitmap(SlimeFrames.draw(SlimeFrames.Pose.SQUISH, scale))
+        val i = Intent(this, ChatActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(i)
     }
 
     private fun snapToEdge() {
