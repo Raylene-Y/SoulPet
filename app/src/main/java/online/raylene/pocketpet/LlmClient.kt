@@ -43,7 +43,7 @@ object LlmClient {
         trimHistory()
 
         repeat(MAX_TOOL_ROUNDS) {
-            val resp = request()
+            val resp = request(ctx)
 
             val msg = resp.getJSONArray("choices").getJSONObject(0).getJSONObject("message")
             val toolCalls = msg.optJSONArray("tool_calls")
@@ -72,7 +72,7 @@ object LlmClient {
         return "（工具调用太多轮了，先这样吧）"
     }
 
-    private fun request(): JSONObject {
+    private fun request(ctx: Context): JSONObject {
         val messages = JSONArray()
         messages.put(JSONObject().put("role", "system").put("content",
             persona.prompt +
