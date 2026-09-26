@@ -50,6 +50,9 @@ class ChatActivity : Activity() {
             it.attributes = lp
         }
 
+        // 键盘弹起时整窗上移（adjustPan 失效时的手动兑底）
+        android.os.Handler(mainLooper).post { hookIme() }
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(14.dp(), 18.dp(), 14.dp(), 20.dp())
@@ -126,6 +129,24 @@ class ChatActivity : Activity() {
         } ?: addPetMsg("主人来啦，说点什么吧")
 
         sendBtn.setOnClickListener { send() }
+    }
+
+    // ── 键盘遮挡手动修复：监听 IME 高度，抬高整窗 ──
+    private fun hookIme() {
+        val root = window?.decorView ?: return
+        root.setOnApplyWindowInsetsListener { v, insets ->
+            val ime = if (android.os.Build.VERSION.SDK_INT >= 30)
+                insets.getInsets(android.view.WindowInsets.Type.ime()).bottom
+            else 0
+            val nav = if (android.os.Build.VERSION.SDK_INT >= 30)
+                insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom
+            else 0
+            val lift = (ime - nav).coerceAtLeast(0)
+            val lp = window!!.attributes
+            lp.y = 24.dp() + lift
+            window!!.attributes = lp
+            v.onApplyWindowInsets(insets)
+        }
     }
 
     // ── 人格胶囊 ──
