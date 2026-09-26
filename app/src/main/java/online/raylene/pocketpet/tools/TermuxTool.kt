@@ -31,7 +31,7 @@ object TermuxTool : PetTool {
 
         val i = Intent().apply {
             setClassName("com.termux", "com.termux.app.RunCommandService")
-            action = "com.termux.service_execute"
+            action = "com.termux.RUN_COMMAND"
             putExtra("com.termux.RUN_COMMAND_PATH",
                 "/data/data/com.termux/files/usr/bin/sh")
             putStringArrayListExtra("com.termux.RUN_COMMAND_ARGUMENTS",

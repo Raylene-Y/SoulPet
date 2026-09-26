@@ -23,7 +23,10 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (android.os.Build.VERSION.SDK_INT >= 33) {
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
+            requestPermissions(arrayOf(
+                android.Manifest.permission.POST_NOTIFICATIONS,
+                "com.termux.permission.RUN_COMMAND"
+            ), 1)
         }
 
         val root = LinearLayout(this).apply {
