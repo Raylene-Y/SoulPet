@@ -104,6 +104,7 @@ object LlmClient {
         messages.put(JSONObject().put("role", "system").put("content",
             currentPrompt +
             "\n\n你可以使用提供的工具来帮主人做事。需要时直接调用，用完工具用你的人格口吻汇报结果。" +
+            "铁律：没调用工具就不准声称做了事；工具返回失败要如实告诉主人，不许嘴硬。" +
             "发现关于主人的重要事实（名字、偏好、习惯、重要事件）时，用 remember 工具记下来。" +
             "\n\n【你记住的关于主人的事】\n" + store.readMemory().ifEmpty { "（还没有）" } +
             "\n\n【你此刻的感知】\n" + senseContext(ctx)))
