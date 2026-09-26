@@ -15,11 +15,29 @@ import java.net.URL
 /** OpenAI 兼容接口 + 流式输出 + function calling 循环 */
 object LlmClient {
 
-    private val history = JSONArray()
+    private lateinit var store: MemoryStore
+    private var history = JSONArray()
     private const val MAX_HISTORY = 30
     private const val MAX_TOOL_ROUNDS = 4
 
-    var persona: Persona = Persona.HEALING
+    /** 人格列表：磁盘 personas 目录下 .md 文件优先，label = 文件名 */
+    var personas: List<Pair<String, String>> = emptyList()
+        private set
+    var personaIndex = 0
+    private val currentPrompt get() = personas.getOrNull(personaIndex)?.second ?: ""
+    val currentPersonaLabel get() = personas.getOrNull(personaIndex)?.first ?: "默认"
+
+    @Volatile private var inited = false
+
+    @Synchronized
+    fun init(ctx: Context) {
+        if (inited) return
+        store = MemoryStore(ctx.applicationContext)
+        PetTools.store = store
+        history = store.loadHistory()
+        personas = store.loadPersonas()
+        inited = true
+    }
 
     fun chat(ctx: Context, userText: String,
              onTool: (String) -> Unit = {},
@@ -38,6 +56,7 @@ object LlmClient {
                           onPartial: (String) -> Unit): String {
         history.put(JSONObject().put("role", "user").put("content", userText))
         trimHistory()
+        store.saveHistory(history)
 
         repeat(MAX_TOOL_ROUNDS) {
             val msg = streamRequest(ctx, onPartial)
@@ -46,6 +65,7 @@ object LlmClient {
             if (toolCalls == null || toolCalls.length() == 0) {
                 val content = msg.optString("content", "（它没说话）")
                 history.put(JSONObject().put("role", "assistant").put("content", content))
+                store.saveHistory(history)
                 return content
             }
 
@@ -69,13 +89,15 @@ object LlmClient {
     private fun streamRequest(ctx: Context, onPartial: (String) -> Unit): JSONObject {
         val messages = JSONArray()
         messages.put(JSONObject().put("role", "system").put("content",
-            persona.prompt +
+            currentPrompt +
             "\n\n你可以使用提供的工具来帮主人做事。需要时直接调用，用完工具用你的人格口吻汇报结果。" +
+            "发现关于主人的重要事实（名字、偏好、习惯、重要事件）时，用 remember 工具记下来。" +
+            "\n\n【你记住的关于主人的事】\n" + store.readMemory().ifEmpty { "（还没有）" } +
             "\n\n【你此刻的感知】\n" + senseContext(ctx)))
         for (i in 0 until history.length()) messages.put(history.get(i))
 
         val tools = JSONArray()
-        for (t in PetTools.ALL) tools.put(t.toSchema())
+        for (t in PetTools.all()) tools.put(t.toSchema())
 
         val body = JSONObject()
             .put("model", BuildConfig.DEFAULT_MODEL)

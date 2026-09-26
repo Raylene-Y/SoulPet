@@ -1,19 +1,21 @@
 package online.raylene.pocketpet.tools
 
 import android.content.Context
+import online.raylene.pocketpet.MemoryStore
 import org.json.JSONObject
 
 object PetTools {
-    val ALL: List<PetTool> = listOf(
+    lateinit var store: MemoryStore
+
+    fun all(): List<PetTool> = listOf(
         BatteryTool,
         DateTimeTool,
         ClipboardTool,
+        RememberTool(store),
     )
 
-    private val byName = ALL.associateBy { it.name }
-
     fun execute(ctx: Context, name: String, argsJson: String): String {
-        val tool = byName[name] ?: return "（没有这个工具：$name）"
+        val tool = all().find { it.name == name } ?: return "（没有这个工具：$name）"
         return try {
             val args = if (argsJson.isBlank()) JSONObject() else JSONObject(argsJson)
             tool.run(ctx, args)

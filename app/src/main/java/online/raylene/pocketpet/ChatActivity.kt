@@ -40,7 +40,6 @@ class ChatActivity : Activity() {
         personaRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val personaScroll = HorizontalScrollView(this).apply { addView(personaRow) }
         root.addView(personaScroll)
-        renderPersonaButtons()
 
         // 消息区
         msgBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -62,19 +61,21 @@ class ChatActivity : Activity() {
 
         setContentView(root)
 
-        addMsg("宠物", "（${LlmClient.persona.label}模式）主人来啦，说点什么吧")
+        LlmClient.init(applicationContext)
+        renderPersonaButtons()
+        addMsg("宠物", "（${LlmClient.currentPersonaLabel}模式）主人来啦，说点什么吧")
 
         sendBtn.setOnClickListener { send() }
     }
 
     private fun renderPersonaButtons() {
         personaRow.removeAllViews()
-        for (p in Persona.values()) {
+        LlmClient.personas.forEachIndexed { i, (label, _) ->
             val b = Button(this).apply {
-                text = if (p == LlmClient.persona) "【${p.label}】" else p.label
+                text = if (i == LlmClient.personaIndex) "【$label】" else label
                 setOnClickListener {
-                    LlmClient.persona = p
-                    addMsg("系统", "切换人格 → ${p.label}")
+                    LlmClient.personaIndex = i
+                    addMsg("系统", "切换人格 → $label")
                     renderPersonaButtons()
                 }
             }
