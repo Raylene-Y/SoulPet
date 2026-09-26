@@ -24,6 +24,7 @@ object LlmClient {
     var personas: List<Pair<String, String>> = emptyList()
         private set
     var personaIndex = 0
+    @Volatile var lastChatAt = 0L
     private val currentPrompt get() = personas.getOrNull(personaIndex)?.second ?: ""
     val currentPersonaLabel get() = personas.getOrNull(personaIndex)?.first ?: "默认"
 
@@ -47,6 +48,18 @@ object LlmClient {
             val reply = try { agentLoop(ctx.applicationContext, userText, onTool, onPartial) }
             catch (e: Exception) { "（网络出错了：${e.message}）" }
             onResult(reply)
+        }.start()
+    }
+
+    /** 主动开口：触发器驱动，宠物发起对话 */
+    fun proactive(ctx: Context, trigger: String, onResult: (String) -> Unit) {
+        Thread {
+            val reply = try {
+                agentLoop(ctx.applicationContext,
+                    "【内心驱动】$trigger。请你主动开口和主人说话（用你当前人格的口吻，一两句话）。",
+                    {}, {})
+            } catch (e: Exception) { null }
+            reply?.let(onResult)
         }.start()
     }
 

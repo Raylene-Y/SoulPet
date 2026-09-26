@@ -63,7 +63,9 @@ class ChatActivity : Activity() {
 
         LlmClient.init(applicationContext)
         renderPersonaButtons()
-        addMsg("宠物", "（${LlmClient.currentPersonaLabel}模式）主人来啦，说点什么吧")
+        intent.getStringExtra("proactive_msg")?.let {
+            addMsg("宠物", it)   // 从通知点进来：展示它主动说的话
+        } ?: addMsg("宠物", "（${LlmClient.currentPersonaLabel}模式）主人来啦，说点什么吧")
 
         sendBtn.setOnClickListener { send() }
     }
@@ -87,6 +89,7 @@ class ChatActivity : Activity() {
         val text = input.text.toString().trim()
         if (text.isEmpty()) return
         input.text.clear()
+        LlmClient.lastChatAt = System.currentTimeMillis()
         addMsg("我", text)
         sendBtn.isEnabled = false
         val thinking = addMsg("宠物", "…")

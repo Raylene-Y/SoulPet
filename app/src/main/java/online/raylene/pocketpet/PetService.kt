@@ -29,6 +29,76 @@ class PetService : Service() {
     private val scale by lazy { (resources.displayMetrics.density * 4).toInt().coerceAtLeast(6) }
     private val petPx get() = SlimeFrames.W * scale
 
+    // 主动陪伴：触发冷却记录
+    private val lastTriggerAt = mutableMapOf<String, Long>()
+    private val TRIGGER_COOLDOWN = 4 * 3600_000L   // 同类触发 4 小时一次
+    private val CHECK_INTERVAL = 15 * 60_000L       // 每 15 分钟检查一次
+
+    private val proactiveLoop = object : Runnable {
+        override fun run() {
+            checkTriggers()
+            handler.postDelayed(this, CHECK_INTERVAL)
+        }
+    }
+
+    private fun checkTriggers() {
+        val now = System.currentTimeMillis()
+        val cal = java.util.Calendar.getInstance()
+
+        // 触发器 1：电量低（<20% 且未充电）
+        val bi = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        if (bi != null) {
+            val pct = bi.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) * 100 /
+                      bi.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100)
+            val charging = bi.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ==
+                android.os.BatteryManager.BATTERY_STATUS_CHARGING
+            if (pct < 20 && !charging) tryTrigger("battery_low", now,
+                "主人手机电量只剩 $pct% 了，还没充电")
+        }
+
+        // 触发器 2：早安（9 点～11 点之间，今天还没打过招呼）
+        val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+        if (hour in 9..10) tryTrigger("morning_" + cal.get(java.util.Calendar.DAY_OF_YEAR), now,
+            "现在是早上 $hour 点，新的一天开始了")
+
+        // 触发器 3：被冷落（距上次对话超过 3 小时，且现在不是深夜）
+        if (LlmClient.lastChatAt > 0 && now - LlmClient.lastChatAt > 3 * 3600_000L && hour in 8..23) {
+            tryTrigger("lonely", now, "主人已经 ${(now - LlmClient.lastChatAt) / 3600_000} 小时没理你了")
+        }
+    }
+
+    private fun tryTrigger(key: String, now: Long, desc: String) {
+        val last = lastTriggerAt[key] ?: 0L
+        if (now - last < TRIGGER_COOLDOWN) return
+        lastTriggerAt[key] = now
+        LlmClient.init(applicationContext)
+        LlmClient.proactive(applicationContext, desc) { msg ->
+            handler.post { notifyProactive(msg) }
+        }
+    }
+
+    private fun notifyProactive(msg: String) {
+        val chId = "proactive"
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(NotificationChannel(chId, "宠物找你", NotificationManager.IMPORTANCE_HIGH))
+        val open = PendingIntent.getActivity(this, 1,
+            Intent(this, ChatActivity::class.java)
+                .putExtra("proactive_msg", msg)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val n = Notification.Builder(this, chId)
+            .setContentTitle("你的宠物找你")
+            .setContentText(msg)
+            .setStyle(Notification.BigTextStyle().bigText(msg))
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .build()
+        nm.notify(2, n)
+        // 宠物表情联动：squish 一下表示有话要说
+        pet.setImageBitmap(SlimeFrames.draw(SlimeFrames.Pose.HAPPY, scale))
+    }
+
     // 动画状态机（MVP：idle 呼吸 + 偶尔 squish，拖拽时 happy）
     private var dragging = false
     private var tick = 0
@@ -70,6 +140,7 @@ class PetService : Service() {
         pet.setOnTouchListener(TouchHandler())
         wm.addView(pet, params)
         handler.post(animLoop)
+        handler.postDelayed(proactiveLoop, 60_000)  // 启动 1 分钟后开始检查
     }
 
     override fun onDestroy() {
