@@ -89,12 +89,14 @@ class ChatActivity : Activity() {
         addMsg("我", text)
         sendBtn.isEnabled = false
         val thinking = addMsg("宠物", "…")
-        LlmClient.chat(text) { reply ->
-            runOnUiThread {
-                thinking.text = reply
-                sendBtn.isEnabled = true
-            }
-        }
+        LlmClient.chat(applicationContext, text,
+            onTool = { name -> runOnUiThread { addMsg("⚙", "宠物使用了工具：$name") } },
+            onResult = { reply ->
+                runOnUiThread {
+                    thinking.text = reply
+                    sendBtn.isEnabled = true
+                }
+            })
     }
 
     private fun addMsg(who: String, text: String): TextView {
