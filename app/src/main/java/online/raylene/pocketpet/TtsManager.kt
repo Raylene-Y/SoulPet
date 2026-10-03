@@ -33,7 +33,13 @@ object TtsManager : TextToSpeech.OnInitListener {
             .replace(Regex("[*#`>_~]"), "")
             .trim()
         if (clean.isEmpty()) return
+        // 拷贝一份交给队列，speak 本身不阻塞
         tts?.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "pet_reply")
+    }
+
+    /** 提前到 app 启动时初始化（主线程，启动期卡顿无所谓，聊天时才要顺） */
+    fun warmUp(ctx: Context) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post { init(ctx) }
     }
 
     @Synchronized

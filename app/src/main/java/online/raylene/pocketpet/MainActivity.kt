@@ -22,6 +22,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        TtsManager.warmUp(this)
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             requestPermissions(arrayOf(
                 android.Manifest.permission.POST_NOTIFICATIONS,
