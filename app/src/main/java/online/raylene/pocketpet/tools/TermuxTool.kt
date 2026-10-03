@@ -15,7 +15,15 @@ import java.io.File
  */
 object TermuxTool : PetTool {
     override val name = "termux_run"
-    override val description = "在用户手机的 Termux（Linux 环境）里执行 shell 命令并拿到输出。可调用 termux-api（拍照/发短信/定位/震动等）和任何已装 Linux 工具。仅当手机装有 Termux 时可用。"
+    override val description = """在用户手机的 Termux（Linux 环境）里执行 shell 命令并返回输出。
+常用能力（termux-api 命令，直接当命令用）：
+- termux-battery-status 电量 | termux-vibrate [-d 毫秒] 震动 | termux-torch on/off 手电筒
+- termux-location 定位(GPS) | termux-clipboard-set/get 剪贴板 | termux-tts-speak "文本" 语音播报
+- termux-notification -t 标题 -c 内容 发通知 | termux-toast "文本" 弹提示 | termux-volume 音量
+- termux-camera-photo -c 0 文件.jpg 拍照 | termux-sms-send -n 号码 "文本" 发短信 | termux-contact-list 通讯录
+- termux-brightness 0-255 亮度 | termux-dialog 弹窗 | termux-wifi-connectioninfo WiFi信息
+也支持任何已装的 Linux 工具（python3、ffmpeg、curl、git 等）。
+多步骤命令用 && 串联。输出会自动回传给你，用人格口吻向主人汇报结果。""".trimIndent()
     override val parameters = JSONObject()
         .put("type", "object")
         .put("properties", JSONObject().put("command", JSONObject()
