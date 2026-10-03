@@ -207,6 +207,13 @@ class PetService : Service() {
                 }
             }
 
+            // 聊天窗打开：强制回安静态（不半路定格在跑姿）
+            if (chatOpen && state != State.IDLE) {
+                state = State.IDLE
+                stateTicks = 0
+                frameIdx = 0
+            }
+
             if (pack != null) {
                 renderPack()
                 handler.postDelayed(this, tickDelay())
