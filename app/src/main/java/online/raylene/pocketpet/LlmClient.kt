@@ -105,13 +105,14 @@ object LlmClient {
             currentPrompt +
             "\n\n你可以使用提供的工具来帮主人做事。需要时直接调用，用完工具用你的人格口吻汇报结果。" +
             "铁律：没调用工具就不准声称做了事；工具返回失败要如实告诉主人，不许嘴硬。" +
+            "主人要求调整你的性格/说话方式时用 edit_persona 改人格文件；主人要求定时提醒或定时做事时用 schedule_task。" +
             "发现关于主人的重要事实（名字、偏好、习惯、重要事件）时，用 remember 工具记下来。" +
             "\n\n【你记住的关于主人的事】\n" + store.readMemory().ifEmpty { "（还没有）" } +
             "\n\n【你此刻的感知】\n" + senseContext(ctx)))
         for (i in 0 until history.length()) messages.put(history.get(i))
 
         val tools = JSONArray()
-        for (t in PetTools.all()) tools.put(t.toSchema())
+        for (t in PetTools.all(ctx)) tools.put(t.toSchema())
 
         val body = JSONObject()
             .put("model", BuildConfig.DEFAULT_MODEL)

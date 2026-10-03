@@ -7,16 +7,18 @@ import org.json.JSONObject
 object PetTools {
     lateinit var store: MemoryStore
 
-    fun all(): List<PetTool> = listOf(
+    fun all(ctx: Context): List<PetTool> = listOf(
         BatteryTool,
         DateTimeTool,
         ClipboardTool,
         TermuxTool,
         RememberTool(store),
+        EditPersonaTool(store),
+        ScheduleTool(ctx),
     )
 
     fun execute(ctx: Context, name: String, argsJson: String): String {
-        val tool = all().find { it.name == name } ?: return "（没有这个工具：$name）"
+        val tool = all(ctx).find { it.name == name } ?: return "（没有这个工具：$name）"
         return try {
             val args = if (argsJson.isBlank()) JSONObject() else JSONObject(argsJson)
             tool.run(ctx, args)

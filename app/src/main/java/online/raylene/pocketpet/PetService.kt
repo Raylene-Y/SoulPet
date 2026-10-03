@@ -65,6 +65,35 @@ class PetService : Service() {
         if (LlmClient.lastChatAt > 0 && now - LlmClient.lastChatAt > 3 * 3600_000L && hour in 8..23) {
             tryTrigger("lonely", now, "主人已经 ${(now - LlmClient.lastChatAt) / 3600_000} 小时没理你了")
         }
+
+        // 触发器 4：到点的定时任务（调教对话产生的）
+        checkScheduledTasks(now)
+    }
+
+    private fun checkScheduledTasks(now: Long) {
+        val tasks = online.raylene.pocketpet.tools.ScheduleTool.loadFrom(applicationContext)
+        if (tasks.length() == 0) return
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        var dirty = false
+        for (i in tasks.length() - 1 downTo 0) {
+            val t = tasks.getJSONObject(i)
+            val at = if (t.isNull("at")) 0L else t.getLong("at")
+            val daily = if (t.isNull("daily")) "" else t.getString("daily")
+            val dueOnce = at in 1..now
+            val dueDaily = daily.isNotEmpty() && t.optString("lastFiredDay") != today &&
+                java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date()) >= daily
+            if (dueOnce || dueDaily) {
+                val taskText = t.getString("task")
+                if (dueOnce) tasks.remove(i) else t.put("lastFiredDay", today)
+                dirty = true
+                LlmClient.init(applicationContext)
+                LlmClient.proactive(applicationContext,
+                    "到了主人之前安排的时间，任务：$taskText。现在就主动开口执行/提醒。") { msg ->
+                    handler.post { notifyProactive(msg) }
+                }
+            }
+        }
+        if (dirty) online.raylene.pocketpet.tools.ScheduleTool.saveTo(applicationContext, tasks)
     }
 
     private fun tryTrigger(key: String, now: Long, desc: String) {
