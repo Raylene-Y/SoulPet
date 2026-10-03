@@ -32,7 +32,7 @@ object TermuxTool : PetTool {
         .put("required", JSONArray().put("command"))
 
     private val resultDir = File(Environment.getExternalStorageDirectory(), "PocketPet/results")
-    private const val TIMEOUT_MS = 25_000L
+    private const val TIMEOUT_MS = 60_000L   // GPS 冷启动可能拖到 30s+
 
     fun isAvailable(ctx: Context): Boolean = try {
         ctx.packageManager.getPackageInfo("com.termux", 0); true
@@ -47,7 +47,7 @@ object TermuxTool : PetTool {
 
         val canResult = Environment.isExternalStorageManager()
         val id = "r${System.currentTimeMillis()}"
-        val resultFile = File(resultDir, "$id.txt")
+        val resultFile = File(resultDir, id)   // Termux 不加后缀，按 basename 原名写
         if (canResult) resultDir.mkdirs()
 
         val i = Intent().apply {
@@ -61,7 +61,6 @@ object TermuxTool : PetTool {
                 putExtra("com.termux.RUN_COMMAND_RESULT_DIRECTORY", resultDir.absolutePath)
                 putExtra("com.termux.RUN_COMMAND_RESULT_SINGLE_FILE", true)
                 putExtra("com.termux.RUN_COMMAND_RESULT_FILE_BASENAME", id)
-                putExtra("com.termux.RUN_COMMAND_RESULT_FILES_SUFFIX", ".txt")
             }
         }
         try {
