@@ -34,14 +34,20 @@ object TermuxTool : PetTool {
             action = "com.termux.RUN_COMMAND"
             putExtra("com.termux.RUN_COMMAND_PATH",
                 "/data/data/com.termux/files/usr/bin/sh")
-            putStringArrayListExtra("com.termux.RUN_COMMAND_ARGUMENTS",
-                arrayListOf("-c", cmd))
+            putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-c", cmd))
             putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
         }
+        // 调试：记录发送现场
+        val dbg = java.io.File(ctx.filesDir, "pet/termux_debug.log")
+        fun log(s: String) = dbg.appendText("${java.util.Date()} $s\n")
+        val resolved = ctx.packageManager.resolveService(i, 0)
+        log("resolveService=${resolved?.serviceInfo?.name}")
         return try {
-            ctx.startService(i)
+            val cn = ctx.startService(i)
+            log("startService result=$cn")
             "命令已发给 Termux 后台执行：$cmd（无回执，如需结果让命令里调 termux-notification 发通知）"
         } catch (e: Exception) {
+            log("startService EX: $e")
             "Termux 拒绝了：${e.message}（可能要在系统设置里给 PocketPet 允许「运行 Termux 命令」权限）"
         }
     }

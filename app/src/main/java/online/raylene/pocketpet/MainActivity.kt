@@ -79,6 +79,28 @@ class MainActivity : Activity() {
         }
         root.addView(toggle)
 
+        val testBridge = android.widget.Button(this).apply {
+            text = "测试 Termux 桥"
+            setOnClickListener {
+                val i = Intent().apply {
+                    setClassName("com.termux", "com.termux.app.RunCommandService")
+                    action = "com.termux.RUN_COMMAND"
+                    putExtra("com.termux.RUN_COMMAND_PATH",
+                        "/data/data/com.termux/files/usr/bin/termux-notification")
+                    putExtra("com.termux.RUN_COMMAND_ARGUMENTS",
+                        arrayOf("-t", "桥测试", "-c", "看到这条说明桥通了"))
+                    putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
+                }
+                val r = try {
+                    startService(i)
+                    "已发送，看通知栏有没有【桥测试】通知"
+                } catch (e: Exception) { "失败：${e.message}" }
+                android.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle("桥测试结果").setMessage(r).setPositiveButton("好", null).show()
+            }
+        }
+        root.addView(testBridge)
+
         setContentView(root)
     }
 
