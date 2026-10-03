@@ -115,6 +115,34 @@ class MainActivity : Activity() {
         }
         root.addView(grantStorage)
 
+        // ── 皮肤选择 ──
+        val skinTitle = TextView(this).apply {
+            text = "皮肤"
+            textSize = 14f
+            setTextColor(ChatActivity.INK_LIGHT)
+            setPadding(0, 32.dp(), 0, 8.dp())
+        }
+        root.addView(skinTitle)
+        val prefs = getSharedPreferences("pet", MODE_PRIVATE)
+        val currentSkin = prefs.getString("pet_id", "slime") ?: "slime"
+        val skins = mutableListOf("slime" to "像素史莱姆（内置）")
+        val petsRoot = java.io.File(filesDir, "pet/pets")
+        PetPackage.scanAll(petsRoot).forEach { skins.add(it.id to it.displayName) }
+        for ((id, label) in skins) {
+            val b = android.widget.Button(this).apply {
+                text = (if (id == currentSkin) "✓ " else "") + label
+                setOnClickListener {
+                    prefs.edit().putString("pet_id", id).apply()
+                    if (PetService.running) {
+                        stopService(Intent(this@MainActivity, PetService::class.java))
+                    }
+                    startForegroundService(Intent(this@MainActivity, PetService::class.java))
+                    recreate()
+                }
+            }
+            root.addView(b)
+        }
+
         setContentView(root)
 
         // 有权限且未在跑 → 直接召唤（自动化/冷启动友好）

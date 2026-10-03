@@ -26,8 +26,13 @@ class PetService : Service() {
     private lateinit var params: WindowManager.LayoutParams
     private val handler = Handler(Looper.getMainLooper())
 
+    // 皮肤：null = 内置史莱姆，非空 = CoPet 宠物包
+    private var pack: PetPackage? = null
+    private var frameIdx = 0
+
     private val scale by lazy { (resources.displayMetrics.density * 4).toInt().coerceAtLeast(6) }
-    private val petPx get() = SlimeFrames.W * scale
+    private val petPx get() = pack?.let { (resources.displayMetrics.density * 110).toInt() }
+        ?: (SlimeFrames.W * scale)
 
     // 主动陪伴：触发冷却记录
     private val lastTriggerAt = mutableMapOf<String, Long>()
@@ -198,12 +203,49 @@ class PetService : Service() {
                 }
             }
 
+            if (pack != null) {
+                renderPack()
+                handler.postDelayed(this, tickDelay())
+                return
+            }
             var bmp = SlimeFrames.draw(pose, scale)
             if (facing < 0) bmp = SlimeFrames.flip(bmp)
             pet.setImageBitmap(bmp)
             handler.postDelayed(this, 400)
         }
     }
+
+    /** 加载皮肤：SharedPreferences 里 pet_id，默认 slime */
+    private fun loadSkin() {
+        val prefs = getSharedPreferences("pet", MODE_PRIVATE)
+        val petId = prefs.getString("pet_id", "slime") ?: "slime"
+        pack = null
+        if (petId != "slime") {
+            val root = java.io.File(filesDir, "pet/pets/$petId")
+            if (root.exists()) {
+                pack = try { PetPackage(root) } catch (e: Exception) { null }
+            }
+        }
+        frameIdx = 0
+    }
+
+    /** 宠物包模式渲染：状态 → 行映射 */
+    private fun packPose(): PetPackage.Row = when {
+        dragging -> PetPackage.Row.JUMPING
+        state == State.SLEEP -> PetPackage.Row.IDLE
+        state == State.WALK -> if (facing > 0) PetPackage.Row.RUN_RIGHT else PetPackage.Row.RUN_LEFT
+        else -> PetPackage.Row.IDLE
+    }
+
+    private fun renderPack() {
+        val p = pack ?: return
+        val row = packPose()
+        val step = if (state == State.SLEEP) 3 else 1
+        if (tick % step == 0) frameIdx = (frameIdx + 1) % p.frameCount
+        pet.setImageBitmap(p.frame(row, frameIdx))
+    }
+
+    private fun tickDelay(): Long = if (pack != null) 150 else 400
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -212,6 +254,7 @@ class PetService : Service() {
         super.onCreate()
         running = true
         startForeground(1, buildNotification())
+        loadSkin()
 
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         pet = ImageView(this)
@@ -268,7 +311,9 @@ class PetService : Service() {
 
     private fun onPetTapped() {
         // 点宠物 → 打开对话
-        pet.setImageBitmap(SlimeFrames.draw(SlimeFrames.Pose.SQUISH, scale))
+        val p = pack
+        if (p != null) pet.setImageBitmap(p.frame(PetPackage.Row.WAVING, 0))
+        else pet.setImageBitmap(SlimeFrames.draw(SlimeFrames.Pose.SQUISH, scale))
         val i = Intent(this, ChatActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(i)
     }
