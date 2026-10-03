@@ -68,7 +68,7 @@ class MainActivity : Activity() {
         root.addView(slime)
 
         val title = TextView(this).apply {
-            text = "PocketPet"
+            text = "SoulPet"
             textSize = 26f
             setTextColor(ChatActivity.INK)
             setPadding(0, 16.dp(), 0, 4.dp())
