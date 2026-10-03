@@ -39,9 +39,34 @@ class PetPackage(val dir: File) {
             ?: throw IllegalStateException("spritesheet 解码失败")
     }
 
+    // 每行有效帧数（剔除全透明空格，防止播放时闪没）
+    private val validFrames = HashMap<Int, Int>()
+
+    private fun validCount(row: Int): Int = validFrames.getOrPut(row) {
+        var lastValid = -1
+        for (c in 0 until cols) {
+            if (!isBlankFrame(row, c)) lastValid = c
+        }
+        lastValid + 1
+    }.coerceAtLeast(1)
+
+    private fun isBlankFrame(row: Int, col: Int): Boolean {
+        // 抽样检测：每 12px 取一个像素看 alpha
+        var x = col * frameW
+        while (x < (col + 1) * frameW) {
+            var y = row * frameH
+            while (y < (row + 1) * frameH) {
+                if (sheet.getPixel(x, y) ushr 24 > 16) return false
+                y += 12
+            }
+            x += 12
+        }
+        return true
+    }
+
     fun frame(row: Row, frameIndex: Int): Bitmap {
-        val col = frameIndex % cols
         val r = row.index.coerceAtMost(rows - 1)
+        val col = frameIndex % validCount(r)
         return Bitmap.createBitmap(sheet, col * frameW, r * frameH, frameW, frameH)
     }
 

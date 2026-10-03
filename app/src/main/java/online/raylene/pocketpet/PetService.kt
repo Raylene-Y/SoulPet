@@ -241,7 +241,7 @@ class PetService : Service() {
         val p = pack ?: return
         val row = packPose()
         val step = if (state == State.SLEEP) 3 else 1
-        if (tick % step == 0) frameIdx = (frameIdx + 1) % p.frameCount
+        if (tick % step == 0) frameIdx = (frameIdx + 1) % 1000  // frame() 内部按有效帧数取模
         pet.setImageBitmap(p.frame(row, frameIdx))
     }
 
