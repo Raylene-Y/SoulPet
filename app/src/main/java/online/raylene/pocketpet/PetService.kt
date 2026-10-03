@@ -19,7 +19,10 @@ import kotlin.math.abs
 
 class PetService : Service() {
 
-    companion object { @Volatile var running = false }
+    companion object {
+        @Volatile var running = false
+        @Volatile var chatOpen = false   // 聊天窗开着时宠物定住陪聊
+    }
 
     private lateinit var wm: WindowManager
     private lateinit var pet: ImageView
@@ -175,8 +178,9 @@ class PetService : Service() {
 
             val pose: SlimeFrames.Pose = when {
                 dragging -> SlimeFrames.Pose.HAPPY
+                chatOpen -> SlimeFrames.Pose.IDLE_A   // 陪聊时安静坐着
                 state == State.SLEEP -> SlimeFrames.Pose.SLEEP
-                state == State.WALK -> {
+                state == State.WALK && !chatOpen -> {
                     // 走路：二维位移 + 颠簸帧，撞墙即转向并结束本次行走
                     params.x += facing * (scale + 6)
                     params.y += facingY * (scale / 2 + 2)
@@ -194,7 +198,7 @@ class PetService : Service() {
                 else -> if (tick % 2 == 0) SlimeFrames.Pose.IDLE_A else SlimeFrames.Pose.IDLE_B
             }
 
-            if (!dragging && stateTicks >= dur) {
+            if (!dragging && !chatOpen && stateTicks >= dur) {
                 state = pickNextState()
                 stateTicks = 0
                 if (state == State.WALK) {

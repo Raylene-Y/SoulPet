@@ -37,6 +37,16 @@ class ChatActivity : Activity() {
     private fun round(radius: Float, color: Int): GradientDrawable =
         GradientDrawable().apply { setColor(color); cornerRadius = radius * dp }
 
+    override fun onResume() {
+        super.onResume()
+        PetService.chatOpen = true
+    }
+
+    override fun onPause() {
+        super.onPause()
+        PetService.chatOpen = false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
