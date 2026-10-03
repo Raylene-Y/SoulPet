@@ -123,7 +123,7 @@ class PetService : Service() {
 
     private fun stateDuration(s: State) = when (s) {
         State.IDLE -> 8 + rng.nextInt(12)      // 3~8 秒
-        State.WALK -> 12 + rng.nextInt(25)     // 5~15 秒，走得更远
+        State.WALK -> 25 + rng.nextInt(50)     // 10~30 秒，基本能走到墙
         State.SLEEP -> 20 + rng.nextInt(25)    // 8~18 秒
     }
 
@@ -136,16 +136,18 @@ class PetService : Service() {
                 dragging -> SlimeFrames.Pose.HAPPY
                 state == State.SLEEP -> SlimeFrames.Pose.SLEEP
                 state == State.WALK -> {
-                    // 走路：二维位移 + 颠簸帧 + 撞墙转向
+                    // 走路：二维位移 + 颠簸帧，撞墙即转向并结束本次行走
                     params.x += facing * (scale + 6)
                     params.y += facingY * (scale / 2 + 2)
                     val maxX = resources.displayMetrics.widthPixels - petPx
                     val maxY = resources.displayMetrics.heightPixels - petPx - 80
-                    if (params.x <= 0) { params.x = 0; facing = 1 }
-                    if (params.x >= maxX) { params.x = maxX; facing = -1 }
-                    if (params.y <= 60) { params.y = 60; facingY = 1 }
-                    if (params.y >= maxY) { params.y = maxY; facingY = -1 }
+                    var hitWall = false
+                    if (params.x <= 0) { params.x = 0; facing = 1; hitWall = true }
+                    if (params.x >= maxX) { params.x = maxX; facing = -1; hitWall = true }
+                    if (params.y <= 60) { params.y = 60; facingY = 1; hitWall = true }
+                    if (params.y >= maxY) { params.y = maxY; facingY = -1; hitWall = true }
                     try { wm.updateViewLayout(pet, params) } catch (_: Exception) {}
+                    if (hitWall) stateTicks += 15   // 撞墙加速结束这段行走
                     if (tick % 2 == 0) SlimeFrames.Pose.IDLE_A else SlimeFrames.Pose.IDLE_B
                 }
                 else -> if (tick % 2 == 0) SlimeFrames.Pose.IDLE_A else SlimeFrames.Pose.IDLE_B
