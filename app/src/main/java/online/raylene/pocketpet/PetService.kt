@@ -114,7 +114,7 @@ class PetService : Service() {
         val roll = rng.nextInt(100)
         return when {
             night && roll < 50 -> State.SLEEP
-            roll < 55 -> State.IDLE
+            roll < 40 -> State.IDLE
             roll < 85 -> State.WALK
             else -> State.SLEEP
         }
@@ -122,7 +122,7 @@ class PetService : Service() {
 
     private fun stateDuration(s: State) = when (s) {
         State.IDLE -> 8 + rng.nextInt(12)      // 3~8 秒
-        State.WALK -> 6 + rng.nextInt(10)
+        State.WALK -> 12 + rng.nextInt(25)     // 5~15 秒，走得更远
         State.SLEEP -> 20 + rng.nextInt(25)    // 8~18 秒
     }
 
@@ -136,7 +136,7 @@ class PetService : Service() {
                 state == State.SLEEP -> SlimeFrames.Pose.SLEEP
                 state == State.WALK -> {
                     // 走路：位移 + 颠簸帧
-                    params.x += facing * (scale / 2 + 2)
+                    params.x += facing * (scale + 6)
                     val maxX = resources.displayMetrics.widthPixels - petPx
                     if (params.x <= 0) { params.x = 0; facing = 1 }
                     if (params.x >= maxX) { params.x = maxX; facing = -1 }
