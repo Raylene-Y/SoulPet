@@ -72,12 +72,14 @@ class MainActivity : Activity() {
             textSize = 26f
             setTextColor(ChatActivity.INK)
             setPadding(0, 16.dp(), 0, 4.dp())
+            gravity = Gravity.CENTER
         }
         val sub = TextView(this).apply {
             text = "住在你屏幕上的小东西"
             textSize = 14f
             setTextColor(ChatActivity.INK_LIGHT)
             setPadding(0, 0, 0, 28.dp())
+            gravity = Gravity.CENTER
         }
         root.addView(title); root.addView(sub)
 
