@@ -6,7 +6,8 @@ import android.media.SoundPool
 import org.json.JSONObject
 import java.io.File
 
-/** CoPet 兼容音效包：sounds/<pack>/sound.json + mp3。SoundPool 低延迟播放 */
+/** CoPet 兼容音效包：sounds/<pack>/sound.json + 音频文件。SoundPool 低延迟播放。
+ *  默认 retro 包：代码合成的 8-bit 音效，运行时生成，零素材依赖。 */
 object SoundManager {
     private var pool: SoundPool? = null
     private val sounds = HashMap<String, Int>()   // event -> soundId
@@ -16,7 +17,10 @@ object SoundManager {
     fun init(ctx: Context) {
         if (loaded) return
         loaded = true
-        val packDir = File(ctx.filesDir, "pet/sounds/copet")
+        // 确保 retro 包存在（代码合成），默认用它
+        val retroDir = File(ctx.filesDir, "pet/sounds/retro")
+        if (!File(retroDir, "sound.json").exists()) SoundSynth.generateRetroPack(retroDir)
+        val packDir = retroDir
         val jsonFile = File(packDir, "sound.json")
         if (!jsonFile.exists()) return
         try {
