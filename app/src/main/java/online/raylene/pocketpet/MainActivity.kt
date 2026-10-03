@@ -26,7 +26,7 @@ class MainActivity : Activity() {
     }
 
     /** 蓝色胶囊按钮 */
-    private fun pillButton(label: String, filled: Boolean, onClick: () -> Unit): TextView {
+    private fun pillButton(label: String, filled: Boolean, onClick: (TextView) -> Unit): TextView {
         return TextView(this).apply {
             text = label
             textSize = 15f
@@ -39,7 +39,7 @@ class MainActivity : Activity() {
                 setTextColor(ChatActivity.SLIME_DEEP)
                 background = pill(Color.WHITE)
             }
-            setOnClickListener { onClick() }
+            setOnClickListener { onClick(this) }
         }
     }
 
@@ -82,13 +82,13 @@ class MainActivity : Activity() {
         root.addView(title); root.addView(sub)
 
         // 召唤按钮（主按钮）
-        val summon = pillButton(if (PetService.running) "收起来" else "召唤它", true) {
+        val summon = pillButton(if (PetService.running) "收起来" else "召唤它", true) { btn ->
             if (PetService.running) {
                 stopService(Intent(this, PetService::class.java))
-                (it as TextView).text = "召唤它"
+                btn.text = "召唤它"
             } else {
                 summonPet()
-                (it as TextView).text = "收起来"
+                btn.text = "收起来"
             }
         }
         summon.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
