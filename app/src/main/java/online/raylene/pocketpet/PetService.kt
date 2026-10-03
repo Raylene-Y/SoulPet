@@ -99,19 +99,62 @@ class PetService : Service() {
         pet.setImageBitmap(SlimeFrames.draw(SlimeFrames.Pose.HAPPY, scale))
     }
 
-    // 动画状态机（MVP：idle 呼吸 + 偶尔 squish，拖拽时 happy）
+    // ── 行为状态机 ──
+    private enum class State { IDLE, WALK, SLEEP }
+    private var state = State.IDLE
+    private var stateTicks = 0
+    private var facing = 1          // 1=右 -1=左
     private var dragging = false
     private var tick = 0
+    private val rng = java.util.Random()
+
+    private fun pickNextState(): State {
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val night = hour >= 23 || hour < 7
+        val roll = rng.nextInt(100)
+        return when {
+            night && roll < 50 -> State.SLEEP
+            roll < 55 -> State.IDLE
+            roll < 85 -> State.WALK
+            else -> State.SLEEP
+        }
+    }
+
+    private fun stateDuration(s: State) = when (s) {
+        State.IDLE -> 8 + rng.nextInt(12)      // 3~8 秒
+        State.WALK -> 6 + rng.nextInt(10)
+        State.SLEEP -> 20 + rng.nextInt(25)    // 8~18 秒
+    }
+
     private val animLoop = object : Runnable {
         override fun run() {
-            tick++
-            val pose = when {
+            tick++; stateTicks++
+            val dur = stateDuration(state)
+
+            val pose: SlimeFrames.Pose = when {
                 dragging -> SlimeFrames.Pose.HAPPY
-                tick % 12 == 0 -> SlimeFrames.Pose.SQUISH
-                tick % 2 == 0 -> SlimeFrames.Pose.IDLE_B
-                else -> SlimeFrames.Pose.IDLE_A
+                state == State.SLEEP -> SlimeFrames.Pose.SLEEP
+                state == State.WALK -> {
+                    // 走路：位移 + 颠簸帧
+                    params.x += facing * (scale / 2 + 2)
+                    val maxX = resources.displayMetrics.widthPixels - petPx
+                    if (params.x <= 0) { params.x = 0; facing = 1 }
+                    if (params.x >= maxX) { params.x = maxX; facing = -1 }
+                    try { wm.updateViewLayout(pet, params) } catch (_: Exception) {}
+                    if (tick % 2 == 0) SlimeFrames.Pose.IDLE_A else SlimeFrames.Pose.IDLE_B
+                }
+                else -> if (tick % 2 == 0) SlimeFrames.Pose.IDLE_A else SlimeFrames.Pose.IDLE_B
             }
-            pet.setImageBitmap(SlimeFrames.draw(pose, scale))
+
+            if (!dragging && stateTicks >= dur) {
+                state = pickNextState()
+                stateTicks = 0
+                if (state == State.WALK && rng.nextBoolean()) facing = -facing
+            }
+
+            var bmp = SlimeFrames.draw(pose, scale)
+            if (facing < 0) bmp = SlimeFrames.flip(bmp)
+            pet.setImageBitmap(bmp)
             handler.postDelayed(this, 400)
         }
     }
