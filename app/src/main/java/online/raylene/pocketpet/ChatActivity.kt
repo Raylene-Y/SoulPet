@@ -133,6 +133,7 @@ class ChatActivity : Activity() {
         setContentView(root)
 
         LlmClient.init(applicationContext)
+        SoundManager.init(applicationContext)
         renderPersonaChips()
         intent.getStringExtra("proactive_msg")?.let {
             addPetMsg(it)
@@ -237,6 +238,7 @@ class ChatActivity : Activity() {
         LlmClient.lastChatAt = System.currentTimeMillis()
         addUserMsg(text)
         sendBtn.isEnabled = false
+        SoundManager.play("thinking")   // 开始思考
         val thinking = addPetMsg("…")
         LlmClient.chat(applicationContext, text,
             onTool = { name -> runOnUiThread { addToolMsg(name) } },
@@ -245,6 +247,7 @@ class ChatActivity : Activity() {
                 runOnUiThread {
                     thinking.text = reply
                     sendBtn.isEnabled = true
+                    SoundManager.play(if (reply.startsWith("（")) "failed" else "celebrating")
                     TtsManager.speak(applicationContext, reply)
                 }
             })

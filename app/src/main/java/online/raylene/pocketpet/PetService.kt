@@ -139,6 +139,7 @@ class PetService : Service() {
             .setAutoCancel(true)
             .build()
         nm.notify(2, n)
+        SoundManager.play("inspecting")   // 主动说话配“探头”音
         // 宠物表情联动：squish 一下表示有话要说
         pet.setImageBitmap(SlimeFrames.draw(SlimeFrames.Pose.HAPPY, scale))
     }
@@ -266,6 +267,7 @@ class PetService : Service() {
         running = true
         startForeground(1, buildNotification())
         loadSkin()
+        SoundManager.init(this)
 
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         pet = ImageView(this)
@@ -313,7 +315,7 @@ class PetService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     dragging = false
-                    if (!moved) onPetTapped() else snapToEdge()
+                    if (!moved) onPetTapped() else { snapToEdge(); SoundManager.play("dragLand") }
                 }
             }
             return true
@@ -321,6 +323,7 @@ class PetService : Service() {
     }
 
     private fun onPetTapped() {
+        SoundManager.play("click")
         // 点宠物 → 打开对话
         val p = pack
         if (p != null) pet.setImageBitmap(p.frame(PetPackage.Row.WAVING, 0))
