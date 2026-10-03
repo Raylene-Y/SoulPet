@@ -85,8 +85,11 @@ class MainActivity : Activity() {
         val summon = pillButton(if (PetService.running) "收起来" else "召唤它", true) {
             if (PetService.running) {
                 stopService(Intent(this, PetService::class.java))
-                recreate()
-            } else summonPet()
+                (it as TextView).text = "召唤它"
+            } else {
+                summonPet()
+                (it as TextView).text = "收起来"
+            }
         }
         summon.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
         summon.textSize = 17f
@@ -142,9 +145,10 @@ class MainActivity : Activity() {
         root.addView(advancedBox)
         setContentView(root)
 
-        // 有权限且未在跑 → 直接召唤
+        // 有权限且未在跑 → 直接召唤，并同步按钮文字
         if (!PetService.running && Settings.canDrawOverlays(this)) {
             startForegroundService(Intent(this, PetService::class.java))
+            summon.postDelayed({ summon.text = "收起来" }, 500)
         }
     }
 
@@ -229,6 +233,5 @@ class MainActivity : Activity() {
             return
         }
         startForegroundService(Intent(this, PetService::class.java))
-        finish()
     }
 }
