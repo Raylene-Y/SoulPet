@@ -30,10 +30,13 @@ object LlmClient {
 
     @Volatile private var inited = false
 
+    private lateinit var appCtx: Context
+
     @Synchronized
     fun init(ctx: Context) {
         if (inited) return
-        store = MemoryStore(ctx.applicationContext)
+        appCtx = ctx.applicationContext
+        store = MemoryStore(appCtx)
         PetTools.store = store
         history = store.loadHistory()
         personas = store.loadPersonas()
@@ -121,18 +124,18 @@ object LlmClient {
         for (t in PetTools.all(ctx)) tools.put(t.toSchema())
 
         val body = JSONObject()
-            .put("model", BuildConfig.DEFAULT_MODEL)
+            .put("model", LlmConfig.model(ctx))
             .put("messages", messages)
             .put("tools", tools)
             .put("stream", true)
 
-        val url = URL(BuildConfig.DEFAULT_BASE_URL + "chat/completions")
+        val url = URL(LlmConfig.baseUrl(ctx) + "chat/completions")
         val conn = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15000
             readTimeout = 60000
             setRequestProperty("Content-Type", "application/json")
-            setRequestProperty("Authorization", "Bearer ${BuildConfig.DEFAULT_API_KEY}")
+            setRequestProperty("Authorization", "Bearer ${LlmConfig.apiKey(ctx)}")
             setRequestProperty("Accept", "text/event-stream")
             doOutput = true
         }
