@@ -116,6 +116,11 @@ class MainActivity : Activity() {
         root.addView(grantStorage)
 
         setContentView(root)
+
+        // 有权限且未在跑 → 直接召唤（自动化/冷启动友好）
+        if (!PetService.running && Settings.canDrawOverlays(this)) {
+            startForegroundService(Intent(this, PetService::class.java))
+        }
     }
 
     private fun summon() {

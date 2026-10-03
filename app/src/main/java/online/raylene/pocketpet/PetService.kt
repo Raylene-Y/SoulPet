@@ -32,11 +32,18 @@ class PetService : Service() {
     // 主动陪伴：触发冷却记录
     private val lastTriggerAt = mutableMapOf<String, Long>()
     private val TRIGGER_COOLDOWN = 4 * 3600_000L   // 同类触发 4 小时一次
-    private val CHECK_INTERVAL = 15 * 60_000L       // 每 15 分钟检查一次
+    private val CHECK_INTERVAL = 60_000L        // 每分钟检查一次（定时任务需要精度）
 
     private val proactiveLoop = object : Runnable {
         override fun run() {
-            checkTriggers()
+            try {
+                java.io.File(filesDir, "pet/proactive_debug.log")
+                    .appendText("${java.util.Date()} tick\n")
+                checkTriggers()
+            } catch (e: Exception) {
+                java.io.File(filesDir, "pet/proactive_debug.log")
+                    .appendText("${java.util.Date()} LOOP EX: $e\n")
+            }
             handler.postDelayed(this, CHECK_INTERVAL)
         }
     }

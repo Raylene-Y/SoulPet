@@ -58,8 +58,14 @@ object LlmClient {
                 agentLoop(ctx.applicationContext,
                     "【内心驱动】$trigger。请你主动开口和主人说话（用你当前人格的口吻，一两句话）。",
                     {}, {})
-            } catch (e: Exception) { null }
-            reply?.let(onResult)
+            } catch (e: Exception) {
+                java.io.File(ctx.filesDir, "pet/proactive_debug.log")
+                    .appendText("${java.util.Date()} EX: $e\n")
+                null
+            }
+            if (reply != null) onResult(reply) else
+                java.io.File(ctx.filesDir, "pet/proactive_debug.log")
+                    .appendText("${java.util.Date()} null reply for: $trigger\n")
         }.start()
     }
 
