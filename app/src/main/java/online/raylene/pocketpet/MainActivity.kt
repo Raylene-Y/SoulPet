@@ -101,6 +101,20 @@ class MainActivity : Activity() {
         }
         root.addView(testBridge)
 
+        val grantStorage = android.widget.Button(this).apply {
+            text = "开启命令回传（授权文件访问）"
+            setOnClickListener {
+                if (android.os.Environment.isExternalStorageManager()) {
+                    Toast.makeText(this@MainActivity, "已授权", Toast.LENGTH_SHORT).show()
+                } else {
+                    startActivity(Intent(
+                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                        Uri.parse("package:$packageName")))
+                }
+            }
+        }
+        root.addView(grantStorage)
+
         setContentView(root)
     }
 
