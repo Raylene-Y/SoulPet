@@ -210,7 +210,8 @@ class MainActivity : Activity() {
             hint = "Base URL（OpenAI 兼容接口）"; setText(LlmConfig.baseUrl(this@MainActivity))
         }
         val etKey = EditText(this).apply {
-            hint = "API Key"; setText(LlmConfig.apiKey(this@MainActivity))
+            hint = if (LlmConfig.apiKey(this@MainActivity).isNotBlank())
+                "API Key（已配置，留空保持不变）" else "API Key"
         }
         val etModel = EditText(this).apply {
             hint = "模型名，如 glm-4.5-flash / deepseek-chat"; setText(LlmConfig.model(this@MainActivity))
@@ -220,7 +221,10 @@ class MainActivity : Activity() {
             .setTitle("模型设置")
             .setView(box)
             .setPositiveButton("保存") { _, _ ->
-                LlmConfig.save(this, etUrl.text.toString(), etKey.text.toString(), etModel.text.toString())
+                LlmConfig.save(this,
+                    etUrl.text.toString().ifBlank { LlmConfig.baseUrl(this) },
+                    etKey.text.toString().ifBlank { LlmConfig.apiKey(this) },
+                    etModel.text.toString().ifBlank { LlmConfig.model(this) })
                 Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("取消", null)
