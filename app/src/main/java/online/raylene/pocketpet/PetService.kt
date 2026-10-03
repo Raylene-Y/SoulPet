@@ -104,6 +104,7 @@ class PetService : Service() {
     private var state = State.IDLE
     private var stateTicks = 0
     private var facing = 1          // 1=右 -1=左
+    private var facingY = 1         // 1=下 -1=上
     private var dragging = false
     private var tick = 0
     private val rng = java.util.Random()
@@ -135,11 +136,15 @@ class PetService : Service() {
                 dragging -> SlimeFrames.Pose.HAPPY
                 state == State.SLEEP -> SlimeFrames.Pose.SLEEP
                 state == State.WALK -> {
-                    // 走路：位移 + 颠簸帧
+                    // 走路：二维位移 + 颠簸帧 + 撞墙转向
                     params.x += facing * (scale + 6)
+                    params.y += facingY * (scale / 2 + 2)
                     val maxX = resources.displayMetrics.widthPixels - petPx
+                    val maxY = resources.displayMetrics.heightPixels - petPx - 80
                     if (params.x <= 0) { params.x = 0; facing = 1 }
                     if (params.x >= maxX) { params.x = maxX; facing = -1 }
+                    if (params.y <= 60) { params.y = 60; facingY = 1 }
+                    if (params.y >= maxY) { params.y = maxY; facingY = -1 }
                     try { wm.updateViewLayout(pet, params) } catch (_: Exception) {}
                     if (tick % 2 == 0) SlimeFrames.Pose.IDLE_A else SlimeFrames.Pose.IDLE_B
                 }
@@ -149,7 +154,10 @@ class PetService : Service() {
             if (!dragging && stateTicks >= dur) {
                 state = pickNextState()
                 stateTicks = 0
-                if (state == State.WALK && rng.nextBoolean()) facing = -facing
+                if (state == State.WALK) {
+                    if (rng.nextBoolean()) facing = -facing
+                    facingY = if (rng.nextBoolean()) 1 else -1
+                }
             }
 
             var bmp = SlimeFrames.draw(pose, scale)
