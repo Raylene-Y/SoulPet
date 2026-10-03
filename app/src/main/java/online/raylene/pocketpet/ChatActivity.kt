@@ -59,14 +59,27 @@ class ChatActivity : Activity() {
             }
         }
 
-        // ── 顶部：标题 + 人格胶囊 ──
+        // ── 顶部：标题 + 语音开关 + 人格胶囊 ──
+        val titleRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val title = TextView(this).apply {
             text = "✦ 你的史莱姆"
             textSize = 13f
             setTextColor(INK_LIGHT)
             setPadding(4.dp(), 0, 0, 8.dp())
+            layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
         }
-        root.addView(title)
+        val voiceToggle = TextView(this).apply {
+            text = if (TtsManager.enabled) "🔊" else "🔇"
+            textSize = 16f
+            setPadding(8.dp(), 0, 4.dp(), 0)
+            setOnClickListener {
+                TtsManager.enabled = !TtsManager.enabled
+                if (!TtsManager.enabled) TtsManager.stop()
+                text = if (TtsManager.enabled) "🔊" else "🔇"
+            }
+        }
+        titleRow.addView(title); titleRow.addView(voiceToggle)
+        root.addView(titleRow)
 
         personaRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val personaScroll = HorizontalScrollView(this).apply {
@@ -232,6 +245,7 @@ class ChatActivity : Activity() {
                 runOnUiThread {
                     thinking.text = reply
                     sendBtn.isEnabled = true
+                    TtsManager.speak(applicationContext, reply)
                 }
             })
     }
