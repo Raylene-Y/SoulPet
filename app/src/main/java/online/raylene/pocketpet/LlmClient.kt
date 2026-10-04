@@ -1,6 +1,7 @@
 package online.raylene.pocketpet
 
 import android.content.Context
+import android.content.Intent
 import online.raylene.pocketpet.tools.BatteryTool
 import online.raylene.pocketpet.tools.DateTimeTool
 import online.raylene.pocketpet.tools.PetTools
@@ -284,10 +285,32 @@ $sb
         return msg
     }
 
-    /** 实时感知注入：常见问题零工具调用，一趟出答案 */
+    /** 实时感知注入：手机状态 = 宠物的身体感受（具身感） */
     private fun senseContext(ctx: Context): String {
-        return "- " + DateTimeTool.run(ctx, JSONObject()) +
-               "\n- 手机" + BatteryTool.run(ctx, JSONObject())
+        val sb = StringBuilder()
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        sb.append("- ").append(online.raylene.pocketpet.tools.DateTimeTool.run(ctx, JSONObject()))
+
+        // 电量 → 饥饿感
+        val bi = ctx.registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        if (bi != null) {
+            val pct = bi.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) * 100 /
+                bi.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
+            val charging = bi.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1).let {
+                it == android.os.BatteryManager.BATTERY_STATUS_CHARGING || it == android.os.BatteryManager.BATTERY_STATUS_FULL
+            }
+            sb.append("\n- ").append(when {
+                charging && pct > 90 -> "正在吃饭，快吃饱了（电量 $pct%）"
+                charging -> "正在吃饭（充电中，$pct%）"
+                pct < 20 -> "饿得前胸贴后背！（电量只剩 $pct%）"
+                pct < 50 -> "有点饿了（电量 $pct%）"
+                else -> "饱饱的（电量 $pct%）"
+            })
+        }
+        // 深夜 → 困
+        if (hour in 0..5) sb.append("\n- 现在是深夜，你很困，说话会带哈欠")
+        else if (hour in 6..8) sb.append("\n- 现在是清晨，你刚睡醒还有点迷糊")
+        return sb.toString()
     }
 
     private fun trimHistory() {

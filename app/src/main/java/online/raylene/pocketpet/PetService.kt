@@ -68,7 +68,7 @@ class PetService : Service() {
             val charging = bi.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ==
                 android.os.BatteryManager.BATTERY_STATUS_CHARGING
             if (pct < 20 && !charging) tryTrigger("battery_low", now,
-                "主人手机电量只剩 $pct% 了，还没充电")
+                "你饿坏了（主人手机电量只剩 $pct% 还没充电），去喊主人喂你（催主人充电）")
         }
 
         // 触发器 2：早安（9 点～11 点之间，今天还没打过招呼；带上昨晚的梦）
