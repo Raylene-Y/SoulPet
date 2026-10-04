@@ -210,6 +210,15 @@ class MainActivity : Activity() {
             .setTitle("桥测试结果").setMessage(r).setPositiveButton("好", null).show()
     }
 
+    private data class Preset(val name: String, val baseUrl: String, val model: String, val signup: String)
+
+    private val presets = listOf(
+        Preset("智谱 GLM", "https://api.z.ai/api/paas/v4/", "glm-4.5-flash", "https://open.bigmodel.cn/"),
+        Preset("DeepSeek", "https://api.deepseek.com/", "deepseek-chat", "https://platform.deepseek.com/"),
+        Preset("通义千问", "https://dashscope.aliyuncs.com/compatible-mode/v1/", "qwen-flash", "https://bailian.console.aliyun.com/"),
+        Preset("Kimi", "https://api.moonshot.cn/v1/", "moonshot-v1-8k", "https://platform.moonshot.cn/")
+    )
+
     private fun showLlmSettings() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -225,6 +234,25 @@ class MainActivity : Activity() {
         val etModel = EditText(this).apply {
             hint = "模型名，如 glm-4.5-flash / deepseek-chat"; setText(LlmConfig.model(this@MainActivity))
         }
+
+        // 预设服务商：一键填 baseurl+模型，点名字跳注册页
+        val presetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        for (p in presets) {
+            val b = pillButton(p.name, false) {
+                etUrl.setText(p.baseUrl); etModel.setText(p.model)
+                etKey.requestFocus()
+            }
+            b.layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(0, 0, 8.dp(), 0) }
+            b.setOnLongClickListener {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(p.signup))); true
+            }
+            presetRow.addView(b)
+        }
+        box.addView(TextView(this).apply {
+            text = "快捷填入（长按=去注册领 key）："
+            textSize = 12f; setTextColor(ChatActivity.INK_LIGHT)
+        })
+        box.addView(presetRow)
         box.addView(etUrl); box.addView(etKey); box.addView(etModel)
         android.app.AlertDialog.Builder(this)
             .setTitle("模型设置")
