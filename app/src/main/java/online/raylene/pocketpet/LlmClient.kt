@@ -44,6 +44,54 @@ object LlmClient {
         inited = true
     }
 
+    fun latestDream(): String {
+        if (!inited) return ""
+        return store.readLatestDream()
+    }
+
+    /** 做梦：息屏充电时把近期对话压缩进长期记忆 + 写梦境笔记 */
+    fun dream(ctx: Context, onDone: (Boolean) -> Unit = {}) {
+        Thread {
+            try {
+                val sb = StringBuilder()
+                for (i in 0 until history.length()) {
+                    val m = history.getJSONObject(i)
+                    val r = m.optString("role")
+                    val c = m.optString("content", "")
+                    if ((r == "user" || r == "assistant") && c.isNotBlank())
+                        sb.append(if (r == "user") "主人：" else "宠物：").append(c).append("\n")
+                }
+                if (sb.length < 50) { onDone(false); return@Thread }  // 没内容可整理
+
+                val raw = plainRequest(ctx, listOf("user" to """
+你是一只宠物的潜意识。它睡着了，正在把今天的对话整理成记忆。输出两部分：
+【记住】要写入长期记忆的事实（关于主人的新信息、重要事件、约定），一行一条，没有就写“无”
+【梦境】一段两三行的梦：把今天的片段揉碎重组，天马行空一点，这是宠物做的梦
+
+今天的对话：
+$sb
+""".trimIndent()))
+
+                val facts = raw.substringAfter("【记住】").substringBefore("【梦境】").trim()
+                val dream = raw.substringAfter("【梦境】").trim()
+                if (facts != "无" && facts.isNotBlank()) {
+                    for (line in facts.lines()) {
+                        val f = line.trim().removePrefix("-").trim()
+                        if (f.isNotEmpty() && f != "无") store.appendMemory(f)
+                    }
+                }
+                if (dream.isNotBlank()) store.saveDream(dream)
+
+                // 短期历史瘦身：保留最近 10 条
+                while (history.length() > 10) history.remove(0)
+                store.saveHistory(history)
+                onDone(true)
+            } catch (e: Exception) {
+                onDone(false)
+            }
+        }.start()
+    }
+
     /** 对话结束后后台跑人格漂移评估，完成回调（UI 刷新坐标显示） */
     fun drift(ctx: Context, userMsg: String, reply: String, onDone: () -> Unit = {}) {
         Thread {

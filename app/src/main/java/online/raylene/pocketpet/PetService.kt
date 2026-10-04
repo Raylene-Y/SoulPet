@@ -71,10 +71,36 @@ class PetService : Service() {
                 "主人手机电量只剩 $pct% 了，还没充电")
         }
 
-        // 触发器 2：早安（9 点～11 点之间，今天还没打过招呼）
+        // 触发器 2：早安（9 点～11 点之间，今天还没打过招呼；带上昨晚的梦）
         val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
-        if (hour in 9..10) tryTrigger("morning_" + cal.get(java.util.Calendar.DAY_OF_YEAR), now,
-            "现在是早上 $hour 点，新的一天开始了")
+        if (hour in 9..10) {
+            LlmClient.init(applicationContext)
+            val dream = LlmClient.latestDream()
+            val dreamHint = if (dream.isNotEmpty()) "。你昨晚做了个梦：$dream——可以提一嘴" else ""
+            tryTrigger("morning_" + cal.get(java.util.Calendar.DAY_OF_YEAR), now,
+                "现在是早上 $hour 点，新的一天开始了$dreamHint")
+        }
+
+        // 触发器 5：做梦——充电中 + 息屏 + 距上次整理超 20 小时
+        val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+        val dreamPrefs = getSharedPreferences("dream", MODE_PRIVATE)
+        if (bi != null) {
+            val chargingNow = bi.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1).let {
+                it == android.os.BatteryManager.BATTERY_STATUS_CHARGING || it == android.os.BatteryManager.BATTERY_STATUS_FULL
+            }
+            if (chargingNow && !pm.isInteractive &&
+                now - dreamPrefs.getLong("last", 0) > 20 * 3600_000L) {
+                dreamPrefs.edit().putLong("last", now).apply()
+                LlmClient.init(applicationContext)
+                LlmClient.dream(applicationContext) { did ->
+                    if (did) handler.post {
+                        // 做梦时宠物趴下睡觉
+                        state = State.SLEEP
+                        stateTicks = 0
+                    }
+                }
+            }
+        }
 
         // 触发器 3：被冷落（距上次对话超过 3 小时，且现在不是深夜）
         if (LlmClient.lastChatAt > 0 && now - LlmClient.lastChatAt > 3 * 3600_000L && hour in 8..23) {

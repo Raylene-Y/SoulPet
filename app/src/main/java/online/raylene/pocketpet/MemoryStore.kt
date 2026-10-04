@@ -35,6 +35,19 @@ class MemoryStore(ctx: Context) {
         memoryFile.appendText("- $fact\n")
     }
 
+    /** 梦境笔记 */
+    fun saveDream(text: String) {
+        val day = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        File(dir, "dreams").mkdirs()
+        File(dir, "dreams/$day.md").writeText(text)
+    }
+
+    fun readLatestDream(): String {
+        val d = File(dir, "dreams")
+        val latest = d.listFiles()?.maxByOrNull { it.name } ?: return ""
+        return latest.readText().trim()
+    }
+
     /** 人格：磁盘文件优先，没有就用内置默认 */
     fun loadPersonas(): MutableList<Pair<String, String>> {
         val list = mutableListOf<Pair<String, String>>()

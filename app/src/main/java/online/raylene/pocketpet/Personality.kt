@@ -78,9 +78,10 @@ ${renderForPrompt()}
 宠物答：$petReply
 
 规则：
-- axes 只能在 毒舌/中二/活泼 上微调，每次 -3~+3
+- axes 只能在 毒舌/中二/活泼 上微调，每次互动只允许 -3~+3 的整数，大多数情况下应为 0！性格是慢变量
 - traits 可自由发明新维度（如好奇心、占有欲、洁癖），0-100，每次微调 -5~+5；只在有新观察时创建新维度
-- habits 只沉淀明确的行为模式（"主人熬夜时它会陪着"这种），最多 20 条；与现有重复就不要加
+- 漂移方向：主人对宠物的态度会影响它（被夸开心治愈涨、被怼可能毒舌涨），但同方向的值越接近极端（0或100），微调幅度应该越小
+- habits 只沉淀明确的行为模式，最多 20 条；与现有重复就不要加
 - 这次互动没有信息量就全给空
 只输出 JSON，不要别的：{"axes":{},"traits":{},"habits_add":[],"habits_remove":[]}
 """.trimIndent()
@@ -91,13 +92,15 @@ ${renderForPrompt()}
         val axes = data.getJSONObject("axes")
         delta.optJSONObject("axes")?.let { d ->
             for (k in d.keys()) if (k in AXES) {
-                axes.put(k, (axes.optInt(k, 50) + d.optInt(k, 0)).coerceIn(0, 100))
+                val dd = d.optInt(k, 0).coerceIn(-3, 3)   // 钳制增量
+                axes.put(k, (axes.optInt(k, 50) + dd).coerceIn(0, 100))
             }
         }
         val traits = data.getJSONObject("traits")
         delta.optJSONObject("traits")?.let { d ->
             for (k in d.keys()) {
-                val v = (traits.optInt(k, 50) + d.optInt(k, 0)).coerceIn(0, 100)
+                val dd = d.optInt(k, 0).coerceIn(-5, 5)   // 钳制增量
+                val v = (traits.optInt(k, 50) + dd).coerceIn(0, 100)
                 if (v <= 5) traits.remove(k) else traits.put(k, v)  // 趋零消亡
             }
         }
