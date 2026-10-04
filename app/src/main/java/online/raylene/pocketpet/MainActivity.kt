@@ -140,9 +140,18 @@ class MainActivity : Activity() {
 
         val row2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         row2.addView(pillButton("测试 Termux 桥", false) { testTermuxBridge() }.apply {
+            layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { setMargins(0, 8.dp(), 8.dp(), 0) }
+        })
+        row2.addView(pillButton("导出宠物", false) { exportPet() }.apply {
             layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { setMargins(0, 8.dp(), 0, 0) }
         })
         advancedBox.addView(row2)
+
+        val row3 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        row3.addView(pillButton("导入宠物（克隆）", false) { importPet() }.apply {
+            layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { setMargins(0, 8.dp(), 0, 0) }
+        })
+        advancedBox.addView(row3)
 
         root.addView(advancedBox)
         setContentView(root)
@@ -229,6 +238,50 @@ class MainActivity : Activity() {
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    /** 导出：打包到缓存目录 → 系统分享（注意：分享的是全部记忆，提醒用户） */
+    private fun exportPet() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("导出宠物")
+            .setMessage("会打包它的全部：记忆、人格、性格坐标、任务、梦境。\n\n⚠️ 包含你的聊天记忆，只发给信任的人。")
+            .setPositiveButton("导出") { _, _ ->
+                val out = java.io.File(cacheDir, "soulpet-clone.zip")
+                if (PetClone.export(this, out)) {
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        this, "$packageName.fileprovider", out)
+                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type = "application/zip"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }, "把宠物发给…"))
+                } else Toast.makeText(this, "导出失败", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun importPet() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("导入宠物")
+            .setMessage("选择别人发你的 soulpet-clone.zip。\n\n⚠️ 会覆盖你现在宠物的全部记忆和人格！")
+            .setPositiveButton("选文件") { _, _ ->
+                startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                }, 42)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    @Deprecated("onActivityResult")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 42 && resultCode == RESULT_OK && data?.data != null) {
+            val msg = PetClone.import(this, data.data!!)
+            android.app.AlertDialog.Builder(this).setMessage(msg).setPositiveButton("好", null).show()
+        }
     }
 
     private fun summonPet() {
