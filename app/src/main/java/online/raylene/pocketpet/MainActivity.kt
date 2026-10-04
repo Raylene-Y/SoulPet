@@ -236,24 +236,43 @@ class MainActivity : Activity() {
         }
 
         // 预设服务商：一键填 baseurl+模型，点名字跳注册页
-        val presetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for (p in presets) {
-            val b = pillButton(p.name, false) {
-                etUrl.setText(p.baseUrl); etModel.setText(p.model)
-                etKey.requestFocus()
-            }
-            b.layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(0, 0, 8.dp(), 0) }
-            b.setOnLongClickListener {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(p.signup))); true
-            }
-            presetRow.addView(b)
-        }
         box.addView(TextView(this).apply {
-            text = "快捷填入（长按=去注册领 key）："
+            text = "① 选一个服务商（自动填地址和模型名，长按跳注册页领 key）"
             textSize = 12f; setTextColor(ChatActivity.INK_LIGHT)
         })
-        box.addView(presetRow)
-        box.addView(etUrl); box.addView(etKey); box.addView(etModel)
+        val presetGrid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        for (r in 0..1) {
+            val rowLayout = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for (c in 0..1) {
+                val p = presets[r * 2 + c]
+                val b = pillButton(p.name, false) {
+                    etUrl.setText(p.baseUrl); etModel.setText(p.model)
+                    etKey.requestFocus()
+                    Toast.makeText(this, "已填入 ${p.name}，粘上 API Key 就行", Toast.LENGTH_SHORT).show()
+                }
+                b.layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply {
+                    setMargins(if (c == 0) 0 else 4.dp(), 4.dp(), if (c == 0) 4.dp() else 0, 4.dp())
+                }
+                b.setOnLongClickListener {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(p.signup))); true
+                }
+                rowLayout.addView(b)
+            }
+            presetGrid.addView(rowLayout)
+        }
+        box.addView(presetGrid)
+        box.addView(TextView(this).apply {
+            text = "② 粘贴 API Key"
+            textSize = 12f; setTextColor(ChatActivity.INK_LIGHT)
+            setPadding(0, 4.dp(), 0, 0)
+        })
+        box.addView(etKey)
+        box.addView(TextView(this).apply {
+            text = "③ 高级（一般不用改）"
+            textSize = 12f; setTextColor(ChatActivity.INK_LIGHT)
+            setPadding(0, 8.dp(), 0, 0)
+        })
+        box.addView(etUrl); box.addView(etModel)
         android.app.AlertDialog.Builder(this)
             .setTitle("模型设置")
             .setView(box)
