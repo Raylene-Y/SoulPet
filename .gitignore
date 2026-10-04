@@ -5,3 +5,4 @@ local.properties
 *.apk
 .idea/
 secrets.properties
+docs/colleague-feedback.png
