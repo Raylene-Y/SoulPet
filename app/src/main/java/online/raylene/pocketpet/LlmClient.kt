@@ -114,7 +114,7 @@ $sb
         val body = JSONObject()
             .put("model", LlmConfig.model(ctx))
             .put("messages", messages)
-            .put("stream", false)
+            .put("stream", false).put("max_tokens", 2048)
         val conn = (URL(LlmConfig.baseUrl(ctx) + "chat/completions").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"; connectTimeout = 15000; readTimeout = 60000
             setRequestProperty("Content-Type", "application/json")
@@ -212,7 +212,7 @@ $sb
             .put("model", LlmConfig.model(ctx))
             .put("messages", messages)
             .put("tools", tools)
-            .put("stream", true)
+            .put("stream", true).put("max_tokens", 2048)
 
         val url = URL(LlmConfig.baseUrl(ctx) + "chat/completions")
         val conn = (url.openConnection() as HttpURLConnection).apply {
