@@ -54,6 +54,7 @@ class ChatActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        LlmClient.init(applicationContext)   // 提前：UI 里要用 Personality 数据
 
         // 全屏聊天页（adjustResize 生效，键盘自动避开输入框）
         val root = LinearLayout(this).apply {
@@ -147,7 +148,6 @@ class ChatActivity : Activity() {
 
         setContentView(root)
 
-        LlmClient.init(applicationContext)
         SoundManager.init(applicationContext)
         renderPersonaChips()
         intent.getStringExtra("proactive_msg")?.let {
