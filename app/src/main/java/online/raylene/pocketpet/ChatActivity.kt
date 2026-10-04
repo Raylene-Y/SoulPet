@@ -30,6 +30,11 @@ class ChatActivity : Activity() {
     private lateinit var input: EditText
     private lateinit var sendBtn: TextView
     private lateinit var personaRow: LinearLayout
+    private lateinit var personalityLine: TextView
+
+    private fun refreshPersonalityLine() {
+        personalityLine.text = "性格  ${Personality.renderForUI()}"
+    }
 
     private val dp get() = resources.displayMetrics.density
     private fun Int.dp() = (this * dp).toInt()
@@ -80,6 +85,16 @@ class ChatActivity : Activity() {
         }
         titleRow.addView(title); titleRow.addView(voiceToggle)
         root.addView(titleRow)
+
+        // 人格坐标行（漂移可视化）
+        val personalityLine = TextView(this).apply {
+            textSize = 11f
+            setTextColor(INK_LIGHT)
+            setPadding(4.dp(), 0, 0, 6.dp())
+        }
+        root.addView(personalityLine)
+        this.personalityLine = personalityLine
+        refreshPersonalityLine()
 
         personaRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val personaScroll = HorizontalScrollView(this).apply {
@@ -249,6 +264,10 @@ class ChatActivity : Activity() {
                     sendBtn.isEnabled = true
                     SoundManager.play(if (reply.startsWith("（")) "failed" else "celebrating")
                     TtsManager.speak(applicationContext, reply)
+                }
+                // 后台跑人格漂移，完事刷新坐标显示
+                LlmClient.drift(applicationContext, text, reply) {
+                    runOnUiThread { refreshPersonalityLine() }
                 }
             })
     }

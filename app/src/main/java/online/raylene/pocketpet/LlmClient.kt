@@ -40,7 +40,42 @@ object LlmClient {
         PetTools.store = store
         history = store.loadHistory()
         personas = store.loadPersonas()
+        Personality.init(appCtx)
         inited = true
+    }
+
+    /** 对话结束后后台跑人格漂移评估，完成回调（UI 刷新坐标显示） */
+    fun drift(ctx: Context, userMsg: String, reply: String, onDone: () -> Unit = {}) {
+        Thread {
+            try {
+                val raw = plainRequest(ctx, listOf("user" to Personality.driftPrompt(userMsg, reply)))
+                val jsonStart = raw.indexOf('{'); val jsonEnd = raw.lastIndexOf('}')
+                if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                    Personality.applyDelta(JSONObject(raw.substring(jsonStart, jsonEnd + 1)))
+                }
+            } catch (_: Exception) { /* 漂移失败不致命 */ }
+            onDone()
+        }.start()
+    }
+
+    /** 非流式小请求（漂移评估用） */
+    private fun plainRequest(ctx: Context, msgs: List<Pair<String, String>>): String {
+        val messages = JSONArray()
+        for ((r, c) in msgs) messages.put(JSONObject().put("role", r).put("content", c))
+        val body = JSONObject()
+            .put("model", LlmConfig.model(ctx))
+            .put("messages", messages)
+            .put("stream", false)
+        val conn = (URL(LlmConfig.baseUrl(ctx) + "chat/completions").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"; connectTimeout = 15000; readTimeout = 60000
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Authorization", "Bearer ${LlmConfig.apiKey(ctx)}")
+            doOutput = true
+        }
+        OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
+        if (conn.responseCode !in 200..299) throw RuntimeException("drift API ${conn.responseCode}")
+        return JSONObject(BufferedReader(InputStreamReader(conn.inputStream)).readText())
+            .getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
     }
 
     fun chat(ctx: Context, userText: String,
@@ -112,6 +147,7 @@ object LlmClient {
         val messages = JSONArray()
         messages.put(JSONObject().put("role", "system").put("content",
             currentPrompt +
+            "\n\n" + Personality.renderForPrompt() +
             "\n\n你可以使用提供的工具来帮主人做事。需要时直接调用，用完工具用你的人格口吻汇报结果。" +
             "铁律：没调用工具就不准声称做了事；工具返回失败要如实告诉主人，不许嘴硬。" +
             "主人要求调整你的性格/说话方式时用 edit_persona 改人格文件；主人要求定时提醒或定时做事时用 schedule_task。" +
