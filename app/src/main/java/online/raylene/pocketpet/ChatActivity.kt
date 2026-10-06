@@ -35,6 +35,7 @@ class ChatActivity : Activity() {
     private lateinit var titleText: TextView
 
     private fun refreshPersonalityLine() {
+        if (!::personalityLine.isInitialized) return
         personalityLine.text = "性格  ${Personality.renderForUI()}"
     }
 

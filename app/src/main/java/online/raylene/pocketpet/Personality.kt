@@ -13,6 +13,34 @@ import java.io.File
  */
 object Personality {
     private val AXES = listOf("毒舌", "中二", "活泼")
+
+    /** 内置人格预设表（真机实测初始化数据固化）。自定义人格走 LLM 评定兜底 */
+    private val PRESETS = mapOf(
+        "毒舌" to (triple(100, 60, 10) to mapOf("暴躁" to 90, "傲慢" to 85, "不耐烦" to 80)),
+        "治愈" to (triple(0, 0, 20) to mapOf("温柔" to 90, "关心" to 90, "体贴" to 85)),
+        "中二" to (triple(20, 95, 85) to mapOf("夸张" to 90, "戏剧化" to 85, "忠诚" to 80)),
+        "管家" to (triple(0, 0, 0) to mapOf("恭敬" to 90, "高效" to 90, "体贴" to 90)),
+        "猫娘" to (triple(0, 50, 90) to mapOf("粘人" to 100, "撒娇" to 90, "委屈" to 80)),
+        "诗人" to (triple(0, 0, 0) to mapOf("诗意" to 100, "文艺" to 90, "敏感细腻" to 95))
+    )
+    private fun triple(a: Int, b: Int, c: Int) = Triple(a, b, c)
+
+    /** 预设命中则直接初始化，返回 true（零调用）；没命中走 LLM */
+    @Synchronized
+    fun applyPresetIfAny(): Boolean {
+        val preset = PRESETS[current] ?: return false
+        val p = profile()
+        val axes = p.getJSONObject("axes")
+        axes.put("毒舌", preset.first.first)
+        axes.put("中二", preset.first.second)
+        axes.put("活泼", preset.first.third)
+        val traits = p.getJSONObject("traits")
+        for ((k, v) in preset.second) traits.put(k, v)
+        p.put("inited", true)
+        save()
+        return true
+    }
+
     private lateinit var file: File
     private var root = JSONObject()
     private var current = "默认"

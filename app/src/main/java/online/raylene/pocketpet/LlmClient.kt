@@ -105,9 +105,10 @@ $sb
 
     private var initRunning = false
 
-    /** 人格初始化：第一次选中时读人格文件定起始坐标（每人格只跑一次） */
+    /** 人格初始化：预设表命中直接用（零调用），自定义人格 LLM 评定兜底 */
     fun initPersonality(ctx: Context, onDone: () -> Unit = {}) {
         if (!inited || initRunning || !Personality.needsInit()) { onDone(); return }
+        if (Personality.applyPresetIfAny()) { onDone(); return }   // 内置人格：秒出
         initRunning = true
         Thread {
             try {
