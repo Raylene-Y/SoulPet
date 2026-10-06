@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.Button
+import android.widget.Toast
 import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
@@ -31,6 +32,7 @@ class ChatActivity : Activity() {
     private lateinit var sendBtn: TextView
     private lateinit var personaRow: LinearLayout
     private lateinit var personalityLine: TextView
+    private lateinit var titleText: TextView
 
     private fun refreshPersonalityLine() {
         personalityLine.text = "性格  ${Personality.renderForUI()}"
@@ -68,12 +70,14 @@ class ChatActivity : Activity() {
         // ── 顶部：标题 + 语音开关 + 人格胶囊 ──
         val titleRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val title = TextView(this).apply {
-            text = "✦ 你的史莱姆"
+            val (lv, lvTitle) = LlmClient.levelInfo()
+            text = "✦ 你的史莱姆  Lv.$lv $lvTitle"
             textSize = 13f
             setTextColor(INK_LIGHT)
             setPadding(4.dp(), 0, 0, 8.dp())
             layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
         }
+        titleText = title
         val voiceToggle = TextView(this).apply {
             text = if (TtsManager.enabled) "🔊" else "🔇"
             textSize = 16f
@@ -255,6 +259,7 @@ class ChatActivity : Activity() {
         sendBtn.isEnabled = false
         SoundManager.play("thinking")   // 开始思考
         val thinking = addPetMsg("…")
+        val lvBefore = LlmClient.levelInfo().first
         LlmClient.chat(applicationContext, text,
             onTool = { name -> runOnUiThread { addToolMsg(name) } },
             onPartial = { partial -> runOnUiThread { thinking.text = partial } },
@@ -264,6 +269,15 @@ class ChatActivity : Activity() {
                     sendBtn.isEnabled = true
                     SoundManager.play(if (reply.startsWith("（")) "failed" else "celebrating")
                     TtsManager.speak(applicationContext, reply)
+                    // 升级放礼花
+                    val lvAfter = LlmClient.levelInfo().first
+                    if (lvAfter > lvBefore) {
+                        SoundManager.play("celebrating")
+                        val (_, lvTitle) = LlmClient.levelInfo()
+                        Toast.makeText(this@ChatActivity,
+                            "🎉 亲密度升到 Lv.$lvAfter（$lvTitle）！", Toast.LENGTH_LONG).show()
+                        titleText.text = "✦ 你的史莱姆  Lv.$lvAfter $lvTitle"
+                    }
                 }
                 // 后台跑人格漂移，完事刷新坐标显示
                 LlmClient.drift(applicationContext, text, reply) {

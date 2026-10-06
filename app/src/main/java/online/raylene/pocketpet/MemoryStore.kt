@@ -48,6 +48,46 @@ class MemoryStore(ctx: Context) {
         return latest.readText().trim()
     }
 
+    // ── 成长统计（亲密度等级）──
+    private val statsFile get() = File(dir, "stats.json")
+    private val stats: JSONObject by lazy {
+        if (statsFile.exists()) try { JSONObject(statsFile.readText()) } catch (e: Exception) { JSONObject() }
+        else JSONObject()
+    }
+
+    /** 记一次对话，返回 (等级, 是否升级) */
+    @Synchronized
+    fun bumpChat(): Pair<Int, Boolean> {
+        val n = stats.optInt("msgCount", 0) + 1
+        val oldLv = level(stats.optInt("msgCount", 0))
+        val newLv = level(n)
+        stats.put("msgCount", n)
+        if (!stats.has("firstMeet")) stats.put("firstMeet", System.currentTimeMillis())
+        statsFile.writeText(stats.toString())
+        return newLv to (newLv > oldLv)
+    }
+
+    fun msgCount(): Int = stats.optInt("msgCount", 0)
+
+    /** 等级：聊得越多越亲（Lv1 陌生 → Lv5 老友） */
+    fun level(n: Int = msgCount()): Int = when {
+        n >= 800 -> 5; n >= 300 -> 4; n >= 100 -> 3; n >= 30 -> 2; else -> 1
+    }
+
+    fun levelTitle(lv: Int = level()): String = when (lv) {
+        5 -> "老友"; 4 -> "挚友"; 3 -> "熟人"; 2 -> "认识"; else -> "陌生"
+    }
+
+    /** 记忆条目列表（删除用） */
+    fun memoryLines(): MutableList<String> {
+        if (!memoryFile.exists()) return mutableListOf()
+        return memoryFile.readLines().filter { it.isNotBlank() }.toMutableList()
+    }
+
+    fun rewriteMemory(lines: List<String>) {
+        memoryFile.writeText(lines.joinToString("\n") + if (lines.isNotEmpty()) "\n" else "")
+    }
+
     /** 人格：磁盘文件优先，没有就用内置默认 */
     fun loadPersonas(): MutableList<Pair<String, String>> {
         val list = mutableListOf<Pair<String, String>>()

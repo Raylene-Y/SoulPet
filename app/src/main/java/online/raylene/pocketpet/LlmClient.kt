@@ -131,11 +131,23 @@ $sb
              onTool: (String) -> Unit = {},
              onPartial: (String) -> Unit = {},
              onResult: (String) -> Unit) {
+        // 成长统计 + 升级事件（只计主人主动说话）
+        val leveledUp = synchronized(LlmClient) {
+            val (_, up) = store.bumpChat()
+            if (up) history.put(JSONObject().put("role", "system")
+                .put("content", "【系统】你和主人的亲密度刚升到了 Lv.${store.level()}（${store.levelTitle()}）。自然地表达一下感情变化，别太直白。"))
+            up
+        }
         Thread {
             val reply = try { agentLoop(ctx.applicationContext, userText, onTool, onPartial) }
             catch (e: Exception) { "（网络出错了：${e.message}）" }
             onResult(reply)
         }.start()
+    }
+
+    fun levelInfo(): Pair<Int, String> {
+        if (!inited) return 1 to "陌生"
+        return store.level() to store.levelTitle()
     }
 
     /** 主动开口：触发器驱动，宠物发起对话 */

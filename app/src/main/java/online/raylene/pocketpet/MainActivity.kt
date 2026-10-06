@@ -11,6 +11,7 @@ import android.view.Gravity
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.EditText
+import android.widget.ScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -149,6 +150,9 @@ class MainActivity : Activity() {
 
         val row3 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         row3.addView(pillButton("导入宠物（克隆）", false) { importPet() }.apply {
+            layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { setMargins(0, 8.dp(), 8.dp(), 0) }
+        })
+        row3.addView(pillButton("它的记忆", false) { showMemoryPage() }.apply {
             layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { setMargins(0, 8.dp(), 0, 0) }
         })
         advancedBox.addView(row3)
@@ -285,6 +289,57 @@ class MainActivity : Activity() {
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    /** 它的记忆：等级 + 人格坐标 + 记忆条目（可删） */
+    private fun showMemoryPage() {
+        LlmClient.init(applicationContext)
+        val store = MemoryStore(applicationContext)
+        val (lv, lvTitle) = LlmClient.levelInfo()
+        val lines = store.memoryLines()
+
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20.dp(), 8.dp(), 20.dp(), 0)
+        }
+        box.addView(TextView(this).apply {
+            text = "亲密度 Lv.$lv $lvTitle（聊过 ${store.msgCount()} 轮）\n性格  ${Personality.renderForUI()}"
+            textSize = 13f
+        })
+        box.addView(TextView(this).apply {
+            text = "\n它记住的事（点一条可让它忘掉）："
+            textSize = 12f
+        })
+        val dlg = android.app.AlertDialog.Builder(this)
+            .setTitle("它的记忆")
+            .setView(ScrollView(this).apply { addView(box) })
+            .setPositiveButton("好", null)
+            .create()
+        if (lines.isEmpty()) {
+            box.addView(TextView(this).apply { text = "（还没记住什么，多聊聊）"; textSize = 13f })
+        } else {
+            for (line in lines) {
+                box.addView(TextView(this).apply {
+                    text = line
+                    textSize = 13f
+                    setPadding(0, 8.dp(), 0, 8.dp())
+                    setOnClickListener {
+                        android.app.AlertDialog.Builder(this@MainActivity)
+                            .setMessage("让它忘掉这条？\n\n$line")
+                            .setPositiveButton("忘掉") { _, _ ->
+                                val cur = store.memoryLines()
+                                cur.remove(line)
+                                store.rewriteMemory(cur)
+                                dlg.dismiss()
+                                showMemoryPage()
+                            }
+                            .setNegativeButton("留着", null)
+                            .show()
+                    }
+                })
+            }
+        }
+        dlg.show()
     }
 
     /** 导出：打包到缓存目录 → 系统分享（注意：分享的是全部记忆，提醒用户） */

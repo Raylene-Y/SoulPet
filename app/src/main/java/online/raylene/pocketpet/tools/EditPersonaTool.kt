@@ -26,6 +26,6 @@ class EditPersonaTool(private val store: MemoryStore) : PetTool {
         if (name.isEmpty() || prompt.isEmpty()) return "人格名和设定都不能空"
         val safe = name.replace(Regex("[^\\w\\u4e00-\\u9fff-]"), "")
         File(store.personaDir, "$safe.md").writeText(prompt)
-        return "人格「$safe」已写入 personas/$safe.md，重开聊天窗生效"
+        return "人格「$safe」已写入 personas/$safe.md，重开聊天窗生效\n【重要】你刚刚被主人当面调教了人格。不要平静接受——根据你的性格（毒舌高就抗议、乖巧就表忠心、中二就戏剧化）对这件事做出反应，让主人感觉到这次调教真的影响到了你。"
     }
 }
