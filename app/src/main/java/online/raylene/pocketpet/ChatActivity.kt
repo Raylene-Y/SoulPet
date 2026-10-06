@@ -57,6 +57,7 @@ class ChatActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         LlmClient.init(applicationContext)   // 提前：UI 里要用 Personality 数据
+        Personality.setPersona(LlmClient.currentPersonaLabel)
 
         // 全屏聊天页（adjustResize 生效，键盘自动避开输入框）
         val root = LinearLayout(this).apply {
@@ -180,6 +181,7 @@ class ChatActivity : Activity() {
                     LlmClient.notePersonaSwitch(label)
                     addSysMsg("切换人格 → $label")
                     renderPersonaChips()
+                    refreshPersonalityLine()   // 坐标行换成人格自己的档案
                 }
             }
             personaRow.addView(chip)
