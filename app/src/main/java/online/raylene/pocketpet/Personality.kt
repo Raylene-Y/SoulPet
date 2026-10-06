@@ -95,20 +95,21 @@ object Personality {
             (if (top.isNotEmpty()) "｜$top" else "")
     }
 
-    /** 评估器提示词：让 LLM 输出漂移增量 JSON */
-    fun driftPrompt(userMsg: String, petReply: String): String = """
-你是人格评估器。根据这次互动，判断宠物性格该如何微调。
+    /** 会话级评估提示词：整段对话 → 总漂移增量 */
+    fun driftSessionPrompt(transcript: String): String = """
+你是人格评估器。这是宠物「$current」和主人的一段对话，评估整场下来性格该如何微调。
 当前性格状态：
 ${renderForPrompt()}
-主人说：$userMsg
-宠物答：$petReply
+
+对话：
+$transcript
 
 规则：
-- axes 只能在 毒舌/中二/活泼 上微调，每次互动只允许 -3~+3 的整数，大多数情况下应为 0！性格是慢变量
-- traits 可自由发明新维度（如好奇心、占有欲、洁癖），0-100，每次微调 -5~+5；只在有新观察时创建新维度
-- 漂移方向：主人对宠物的态度会影响它（被夸开心治愈涨、被怼可能毒舌涨），但同方向的值越接近极端（0或100），微调幅度应该越小
+- axes 只能在 毒舌/中二/活泼 上微调，整段对话总量 -5~+5 的整数，大多数时候应为 0！性格是慢变量
+- traits 可自由发明新维度（如好奇心、占有欲、洁癖），0-100，微调 -5~+5；只在有新观察时创建新维度
+- 越接近极端（0或100），微调幅度应该越小
 - habits 只沉淀明确的行为模式，最多 20 条；与现有重复就不要加
-- 这次互动没有信息量就全给空
+- 这段对话没有信息量就全给空
 只输出 JSON，不要别的：{"axes":{},"traits":{},"habits_add":[],"habits_remove":[]}
 """.trimIndent()
 
@@ -119,7 +120,7 @@ ${renderForPrompt()}
         val axes = p.getJSONObject("axes")
         delta.optJSONObject("axes")?.let { d ->
             for (k in d.keys()) if (k in AXES) {
-                val dd = d.optInt(k, 0).coerceIn(-3, 3)   // 钳制增量
+                val dd = d.optInt(k, 0).coerceIn(-5, 5)   // 会话级：总量钳制
                 axes.put(k, (axes.optInt(k, 50) + dd).coerceIn(0, 100))
             }
         }

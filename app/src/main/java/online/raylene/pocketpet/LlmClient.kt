@@ -103,18 +103,52 @@ $sb
         }.start()
     }
 
-    /** 对话结束后后台跑人格漂移评估，完成回调（UI 刷新坐标显示） */
-    fun drift(ctx: Context, userMsg: String, reply: String, onDone: () -> Unit = {}) {
+    private var driftRunning = false
+
+    /** 会话级漂移：聊天窗关闭时，评估整个会话，一次调用出总增量 */
+    fun driftSession(ctx: Context) {
+        if (driftRunning) return
+        if (!inited) return
+        // 取最近 20 条对话当会话素材
+        val sb = StringBuilder()
+        val start = maxOf(0, history.length() - 20)
+        for (i in start until history.length()) {
+            val m = history.getJSONObject(i)
+            val r = m.optString("role")
+            val c = m.optString("content", "")
+            if ((r == "user" || r == "assistant") && c.isNotBlank())
+                sb.append(if (r == "user") "主人：" else "宠物：").append(c.take(200)).append("\n")
+        }
+        if (sb.length < 30) return   // 没聊几句，不值得评估
+        driftRunning = true
         Thread {
             try {
-                val raw = plainRequest(ctx, listOf("user" to Personality.driftPrompt(userMsg, reply)))
+                val raw = requestWithRetry(ctx, listOf("user" to Personality.driftSessionPrompt(sb.toString())))
                 val jsonStart = raw.indexOf('{'); val jsonEnd = raw.lastIndexOf('}')
                 if (jsonStart >= 0 && jsonEnd > jsonStart) {
                     Personality.applyDelta(JSONObject(raw.substring(jsonStart, jsonEnd + 1)))
                 }
-            } catch (_: Exception) { /* 漂移失败不致命 */ }
-            onDone()
+            } catch (e: Exception) { /* 漂移失败不致命，但要留案底 */
+                java.io.File(ctx.filesDir, "pet/drift_debug.log")
+                    .appendText("${java.util.Date()} EX: $e\n")
+            }
+            driftRunning = false
         }.start()
+    }
+
+    /** 429 重试包装：等 5 秒再来一次 */
+    private fun requestWithRetry(ctx: Context, msgs: List<Pair<String, String>>, retries: Int = 2): String {
+        var last: Exception? = null
+        repeat(retries + 1) { attempt ->
+            try {
+                return plainRequest(ctx, msgs)
+            } catch (e: Exception) {
+                last = e
+                if (e.message?.contains("429") == true && attempt < retries) Thread.sleep(5000)
+                else throw e
+            }
+        }
+        throw last!!
     }
 
     /** 非流式小请求（漂移评估用） */

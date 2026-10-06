@@ -253,6 +253,12 @@ class ChatActivity : Activity() {
         addRow(tv)
     }
 
+    override fun onDestroy() {
+        // 会话结束：评估整段对话，人格漂移一次到位
+        LlmClient.driftSession(applicationContext)
+        super.onDestroy()
+    }
+
     private fun send() {
         val text = input.text.toString().trim()
         if (text.isEmpty()) return
@@ -282,10 +288,7 @@ class ChatActivity : Activity() {
                         titleText.text = "✦ 你的史莱姆  Lv.$lvAfter $lvTitle"
                     }
                 }
-                // 后台跑人格漂移，完事刷新坐标显示
-                LlmClient.drift(applicationContext, text, reply) {
-                    runOnUiThread { refreshPersonalityLine() }
-                }
+                // 会话级漂移挪到 onDestroy：关窗时评估整段对话
             })
     }
 }
