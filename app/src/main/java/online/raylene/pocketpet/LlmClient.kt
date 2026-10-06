@@ -45,6 +45,15 @@ object LlmClient {
         inited = true
     }
 
+    /** 人格切换：明确告知 LLM，否则旧人格的历史风格会压住新人格 */
+    @Synchronized
+    fun notePersonaSwitch(label: String) {
+        if (!inited) return
+        history.put(JSONObject().put("role", "system")
+            .put("content", "【系统】主人刚刚把你的人格切换成了「$label」。从现在起完全按新人格的设定说话，之前的对话语气不再代表你，不要延续。"))
+        store.saveHistory(history)
+    }
+
     fun latestDream(): String {
         if (!inited) return ""
         return store.readLatestDream()

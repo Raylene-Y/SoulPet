@@ -177,6 +177,7 @@ class ChatActivity : Activity() {
                 layoutParams = lp
                 setOnClickListener {
                     LlmClient.personaIndex = i
+                    LlmClient.notePersonaSwitch(label)
                     addSysMsg("切换人格 → $label")
                     renderPersonaChips()
                 }
