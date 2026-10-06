@@ -150,6 +150,17 @@ $sb
         return store.level() to store.levelTitle()
     }
 
+    /** 技能注入 system prompt：已学技能直接用 termux_run 执行，不现编 */
+    private fun skillsSection(): String {
+        val lines = store.skillLines()
+        if (lines.isEmpty()) return "【技能】还没学会任何技能。主人教你时用 teach_skill 保存。"
+        return buildString {
+            append("【你学会的技能】主人说出这些词时，直接用 termux_run 执行对应命令，不要现编新命令：\n")
+            for (l in lines) append(l).append('\n')
+            append("主人教你新说法（'记住X就是Y'）时用 teach_skill 学会它。")
+        }
+    }
+
     /** 主动开口：触发器驱动，宠物发起对话 */
     fun proactive(ctx: Context, trigger: String, onResult: (String) -> Unit) {
         Thread {
@@ -209,6 +220,7 @@ $sb
         messages.put(JSONObject().put("role", "system").put("content",
             currentPrompt +
             "\n\n" + Personality.renderForPrompt() +
+            "\n\n" + skillsSection() +
             "\n\n你可以使用提供的工具来帮主人做事。需要时直接调用，用完工具用你的人格口吻汇报结果。" +
             "铁律：没调用工具就不准声称做了事；工具返回失败要如实告诉主人，不许嘴硬。" +
             "主人要求调整你的性格/说话方式时用 edit_persona 改人格文件；主人要求定时提醒或定时做事时用 schedule_task。" +

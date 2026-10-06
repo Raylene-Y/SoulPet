@@ -14,6 +14,7 @@ object PetTools {
         TermuxTool,
         RememberTool(store),
         EditPersonaTool(store),
+        TeachSkillTool(store),
         ScheduleTool(ctx),
     )
 

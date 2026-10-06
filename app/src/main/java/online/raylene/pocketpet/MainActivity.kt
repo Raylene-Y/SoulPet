@@ -339,6 +339,40 @@ class MainActivity : Activity() {
                 })
             }
         }
+
+        // 技能区
+        val skills = store.skillLines()
+        box.addView(TextView(this).apply {
+            text = "\n它学会的技能（点一条可让它遗忘）："
+            textSize = 12f
+        })
+        if (skills.isEmpty()) {
+            box.addView(TextView(this).apply {
+                text = "（还没技能。聊天里说：记住，我说'拍照'就是 termux-camera-photo …）"
+                textSize = 13f
+            })
+        } else {
+            for (s in skills) {
+                box.addView(TextView(this).apply {
+                    text = s
+                    textSize = 13f
+                    setPadding(0, 8.dp(), 0, 8.dp())
+                    setOnClickListener {
+                        android.app.AlertDialog.Builder(this@MainActivity)
+                            .setMessage("让它遗忘这个技能？\n\n$s")
+                            .setPositiveButton("遗忘") { _, _ ->
+                                val cur = store.skillLines()
+                                cur.remove(s)
+                                store.rewriteSkills(cur)
+                                dlg.dismiss()
+                                showMemoryPage()
+                            }
+                            .setNegativeButton("留着", null)
+                            .show()
+                    }
+                })
+            }
+        }
         dlg.show()
     }
 

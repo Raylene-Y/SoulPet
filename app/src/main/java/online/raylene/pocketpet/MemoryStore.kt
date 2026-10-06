@@ -88,6 +88,24 @@ class MemoryStore(ctx: Context) {
         memoryFile.writeText(lines.joinToString("\n") + if (lines.isNotEmpty()) "\n" else "")
     }
 
+    // ── 技能（养成资产：教过的命令）──
+    private val skillsFile get() = File(dir, "skills.md")
+
+    /** 技能列表，格式：- 技能名 → termux 命令 */
+    fun skillLines(): MutableList<String> {
+        if (!skillsFile.exists()) return mutableListOf()
+        return skillsFile.readLines().filter { it.trim().startsWith("- ") }.toMutableList()
+    }
+
+    @Synchronized
+    fun addSkill(name: String, command: String) {
+        skillsFile.appendText("- $name → $command\n")
+    }
+
+    fun rewriteSkills(lines: List<String>) {
+        skillsFile.writeText(lines.joinToString("\n") + if (lines.isNotEmpty()) "\n" else "")
+    }
+
     /** 人格：磁盘文件优先，没有就用内置默认 */
     fun loadPersonas(): MutableList<Pair<String, String>> {
         val list = mutableListOf<Pair<String, String>>()
