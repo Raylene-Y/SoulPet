@@ -103,6 +103,26 @@ $sb
         }.start()
     }
 
+    private var initRunning = false
+
+    /** 人格初始化：第一次选中时读人格文件定起始坐标（每人格只跑一次） */
+    fun initPersonality(ctx: Context, onDone: () -> Unit = {}) {
+        if (!inited || initRunning || !Personality.needsInit()) { onDone(); return }
+        initRunning = true
+        Thread {
+            try {
+                val raw = requestWithRetry(ctx, listOf("user" to Personality.initPrompt(currentPrompt)))
+                val s = raw.indexOf('{'); val e = raw.lastIndexOf('}')
+                if (s >= 0 && e > s) Personality.applyInit(JSONObject(raw.substring(s, e + 1)))
+            } catch (ex: Exception) {
+                java.io.File(ctx.filesDir, "pet/drift_debug.log")
+                    .appendText("${java.util.Date()} INIT EX: $ex\n")
+            }
+            initRunning = false
+            onDone()
+        }.start()
+    }
+
     private var driftRunning = false
 
     /** 会话级漂移：聊天窗关闭时，评估整个会话，一次调用出总增量 */

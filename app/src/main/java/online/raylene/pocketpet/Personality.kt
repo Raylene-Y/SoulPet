@@ -113,6 +113,42 @@ $transcript
 只输出 JSON，不要别的：{"axes":{},"traits":{},"habits_add":[],"habits_remove":[]}
 """.trimIndent()
 
+    /** 该人格是否还没定初始坐标（applyInit 打过标记才算初始化过） */
+    @Synchronized
+    fun needsInit(): Boolean {
+        val personas = root.optJSONObject("personas") ?: return true
+        return personas.optJSONObject(current)?.optBoolean("inited") != true
+    }
+
+    /** 人格初始化提示词：读人格文件 → 一次性定起始坐标 */
+    fun initPrompt(personaPrompt: String): String = """
+你是人格测评师。读下面的人格设定，给出它的初始性格坐标。
+
+人格设定：
+$personaPrompt
+
+规则：
+- axes：毒舌/中二/活泼 各 0-100，按人格设定的本色给分（毒舌人格毒舌就该 80+，别客气）
+- traits：从设定里提炼 0-3 个突出的特质（如粘人、好奇心），给 0-100 的分；没有就给空对象
+只输出 JSON：{"axes":{"毒舌":x,"中二":y,"活泼":z},"traits":{}}
+""".trimIndent()
+
+    /** 应用初始坐标（覆盖式，仅初始化用） */
+    @Synchronized
+    fun applyInit(init: JSONObject) {
+        val p = profile()
+        init.optJSONObject("axes")?.let { a ->
+            val axes = p.getJSONObject("axes")
+            for (k in a.keys()) if (k in AXES) axes.put(k, a.optInt(k, 50).coerceIn(0, 100))
+        }
+        init.optJSONObject("traits")?.let { t ->
+            val traits = p.getJSONObject("traits")
+            for (k in t.keys()) traits.put(k, t.optInt(k, 50).coerceIn(0, 100))
+        }
+        p.put("inited", true)
+        save()
+    }
+
     /** 应用漂移增量 */
     @Synchronized
     fun applyDelta(delta: JSONObject) {
